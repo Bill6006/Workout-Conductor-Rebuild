@@ -8,11 +8,11 @@ https://bill6006.github.io/Workout-Conductor-Rebuild/
 
 ## Current scope
 
-Phase 4 adds one centralized, browser-local recalibration engine. The Today screen can now rebuild a whole pre-workout plan, repair only future work after the first completed set, or substitute one safe exercise when equipment is busy. Completed and explicitly locked work is immutable, Equipment Busy remains session-only, and every run starts from a recoverable snapshot.
+Phase 5 adds a premium, browser-local workout execution experience on top of the Phase 4 recalibration engine. The active screen now supports one-tap prefilled Weight/Reps/RIR logging, exact inline corrections, programmed rest, verified resume, exercise guides and Alternatives, warm-ups, drop sets, cue memory, Plate Math, and combined two-move supersets with separate durable records.
 
-Duration, location, equipment, pain/discomfort, recovery/readiness, settings, performance, target-load, skip, replacement, resume, and intensity changes share one typed request and trigger registry. The blocking evaluation overlay appears immediately, can be safely cancelled, and reports a compact result without using a server or remote model. Active workout logging and execution controls remain gated to Phase 5.
+The final move of the final superset round closes directly to the completion surface. Rest derives from a wall-clock target so temporary backgrounding and reload remain accurate, while pause time is excluded from workout elapsed time. Warm-ups are explicitly excluded from progression, PR, and working-volume evidence.
 
-See [docs/recalibration-engine.md](docs/recalibration-engine.md) for the recalibration contract and [docs/phase-reports/PHASE_4.md](docs/phase-reports/PHASE_4.md) for acceptance evidence.
+See [docs/active-workout.md](docs/active-workout.md) for the execution contract and [docs/phase-reports/PHASE_5.md](docs/phase-reports/PHASE_5.md) for acceptance evidence.
 
 ## Local development
 

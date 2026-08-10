@@ -10,14 +10,22 @@ import {
 } from '../domain/models';
 import { createEmptyBundle } from '../domain/defaults';
 import { loadSettings } from './settings';
+import {
+  ActiveSessionSchema,
+  ExerciseNoteSchema,
+  type ActiveSession,
+  type ExerciseNote,
+} from '../features/activeWorkout/schema';
 
 export const DATABASE_NAME = 'workout-conductor';
-const DATABASE_VERSION = 1;
+const DATABASE_VERSION = 2;
 
 export const storeNames = {
   profiles: 'profiles',
   equipmentProfiles: 'equipmentProfiles',
   locations: 'locations',
+  activeSessions: 'activeSessions',
+  exerciseNotes: 'exerciseNotes',
 } as const;
 
 type StoreName = (typeof storeNames)[keyof typeof storeNames];
@@ -158,6 +166,47 @@ export async function loadBundle(): Promise<AppBundle> {
     locations,
     settings: loadSettings() ?? empty.settings,
   };
+}
+
+export async function saveActiveSessionVerified(
+  session: ActiveSession,
+): Promise<ActiveSession> {
+  return writeRecordVerified(
+    storeNames.activeSessions,
+    session,
+    ActiveSessionSchema,
+  );
+}
+
+export async function loadActiveSession(): Promise<ActiveSession | null> {
+  const sessions = await getAllRecords<ActiveSession>(
+    storeNames.activeSessions,
+    ActiveSessionSchema,
+  );
+  return (
+    sessions
+      .filter((session) => session.status !== 'completed')
+      .sort((first, second) =>
+        second.updatedAt.localeCompare(first.updatedAt),
+      )[0] ?? null
+  );
+}
+
+export async function saveExerciseNoteVerified(
+  note: ExerciseNote,
+): Promise<ExerciseNote> {
+  return writeRecordVerified(
+    storeNames.exerciseNotes,
+    note,
+    ExerciseNoteSchema,
+  );
+}
+
+export async function loadExerciseNotes(): Promise<ExerciseNote[]> {
+  return getAllRecords<ExerciseNote>(
+    storeNames.exerciseNotes,
+    ExerciseNoteSchema,
+  );
 }
 
 export async function resetDatabaseForTests(): Promise<void> {

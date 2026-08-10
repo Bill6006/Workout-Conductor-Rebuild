@@ -2,11 +2,23 @@ import { describe, expect, it } from 'vitest';
 import { createDemoBundle } from '../domain/defaults';
 import { BackupFoundationSchema } from '../domain/models';
 import {
+  generateWorkout,
+  generationInputFromBundle,
+} from '../engine/workoutGenerator/generateWorkout';
+import { createActiveSession } from '../features/activeWorkout/session';
+import {
   createBackupFoundation,
   importBackupFoundation,
   parseBackupFoundation,
 } from './backup';
-import { loadBundle, saveBundleVerified } from './database';
+import {
+  loadActiveSession,
+  loadBundle,
+  loadExerciseNotes,
+  saveActiveSessionVerified,
+  saveBundleVerified,
+  saveExerciseNoteVerified,
+} from './database';
 import { loadSettings, saveSettingsVerified } from './settings';
 
 describe('local-first storage foundation', () => {
@@ -47,5 +59,30 @@ describe('local-first storage foundation', () => {
     const imported = await importBackupFoundation(JSON.stringify(backup));
     expect(imported.profile?.isDemo).toBe(true);
     expect((await loadBundle()).profile?.displayName).toBe('Demo Athlete');
+  });
+
+  it('writes and reads back an active session and exercise cue memory', async () => {
+    const demo = createDemoBundle();
+    const workout = generateWorkout(
+      generationInputFromBundle(demo, '15', {
+        date: '2026-08-10T18:00:00.000Z',
+      }),
+    );
+    const session = createActiveSession(workout, '2026-08-10T18:00:00.000Z');
+    expect((await saveActiveSessionVerified(session)).id).toBe(session.id);
+    expect((await loadActiveSession())?.workout.id).toBe(workout.id);
+
+    await saveExerciseNoteVerified({
+      id: 'pull-up',
+      note: 'Synthetic cue: begin from a quiet shoulder.',
+      updatedAt: '2026-08-10T18:01:00.000Z',
+    });
+    expect(await loadExerciseNotes()).toEqual([
+      {
+        id: 'pull-up',
+        note: 'Synthetic cue: begin from a quiet shoulder.',
+        updatedAt: '2026-08-10T18:01:00.000Z',
+      },
+    ]);
   });
 });

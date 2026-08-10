@@ -1,0 +1,82 @@
+import { z } from 'zod';
+import { generatedWorkoutSchema } from '../../engine/workoutGenerator/schema';
+import { CustomExerciseSchema } from '../../catalog/schema';
+
+export const ActiveSetRecordSchema = z.object({
+  id: z.string().min(1),
+  sessionId: z.string().min(1),
+  blockId: z.string().min(1),
+  prescriptionId: z.string().min(1),
+  exerciseId: z.string().min(1),
+  exerciseName: z.string().min(1),
+  kind: z.enum(['warmup', 'working', 'drop']),
+  setIndex: z.number().int().nonnegative(),
+  roundIndex: z.number().int().nonnegative().nullable(),
+  moveIndex: z.number().int().nonnegative(),
+  weight: z.number().min(0).max(5000),
+  reps: z.number().int().min(0).max(1000),
+  rir: z.number().int().min(0).max(10),
+  completedAt: z.string().datetime(),
+  editedAt: z.string().datetime().nullable(),
+  countsTowardProgression: z.boolean(),
+  countsTowardPr: z.boolean(),
+  countsTowardWorkingVolume: z.boolean(),
+});
+
+export const RestTimerSchema = z.object({
+  startedAt: z.string().datetime(),
+  durationSeconds: z.number().int().min(5).max(900),
+  targetSeconds: z.number().int().min(0).max(900),
+  status: z.enum(['running', 'complete']),
+});
+
+export const ActiveSessionSchema = z.object({
+  id: z.string().min(1),
+  schemaVersion: z.literal(1),
+  workout: generatedWorkoutSchema,
+  status: z.enum(['active', 'paused', 'completed']),
+  startedAt: z.string().datetime(),
+  pausedAt: z.string().datetime().nullable(),
+  accumulatedPausedSeconds: z.number().int().nonnegative(),
+  completedAt: z.string().datetime().nullable(),
+  currentBlockIndex: z.number().int().nonnegative(),
+  records: z.array(ActiveSetRecordSchema),
+  warmupSelections: z.record(
+    z.string(),
+    z.enum(['pending', 'added', 'skipped']),
+  ),
+  notesByExerciseId: z.record(z.string(), z.string().max(500)),
+  customExerciseSnapshots: z.record(z.string(), CustomExerciseSchema),
+  pinnedExerciseIds: z.array(z.string()),
+  acceptedAlternativeIds: z.array(z.string()),
+  skippedBlockIds: z.array(z.string()),
+  restTimer: RestTimerSchema.nullable(),
+  updatedAt: z.string().datetime(),
+});
+
+export const ExerciseNoteSchema = z.object({
+  id: z.string().min(1),
+  note: z.string().max(500),
+  updatedAt: z.string().datetime(),
+});
+
+export type ActiveSetRecord = z.infer<typeof ActiveSetRecordSchema>;
+export type RestTimer = z.infer<typeof RestTimerSchema>;
+export type ActiveSession = z.infer<typeof ActiveSessionSchema>;
+export type ExerciseNote = z.infer<typeof ExerciseNoteSchema>;
+
+export type SetSlot = {
+  blockId: string;
+  blockIndex: number;
+  prescriptionId: string;
+  exerciseId: string;
+  exerciseName: string;
+  kind: ActiveSetRecord['kind'];
+  setIndex: number;
+  roundIndex: number | null;
+  moveIndex: number;
+  targetReps: string;
+  targetRir: number;
+  restSeconds: number;
+  loadGuidance: string;
+};

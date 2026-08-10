@@ -24,9 +24,12 @@ import {
   evaluationMessagesFor,
   recalibrationTriggerRegistry,
 } from '../engine/recalibration/triggerRegistry';
+import type { ActiveSession } from '../features/activeWorkout/schema';
 
 type TodayViewProps = {
   bundle: AppBundle;
+  activeSession: ActiveSession | null;
+  onStartWorkout: (workout: ReturnType<typeof generateWorkout>) => void;
 };
 
 type PendingRecalibration = {
@@ -64,7 +67,11 @@ function blockMoves(block: WorkoutBlock) {
   return block.kind === 'exercise' ? [block.prescription] : block.moves;
 }
 
-export function TodayView({ bundle }: TodayViewProps) {
+export function TodayView({
+  bundle,
+  activeSession,
+  onStartWorkout,
+}: TodayViewProps) {
   const [duration, setDuration] = useState<WorkoutDuration>('default');
   const [showWorkout, setShowWorkout] = useState(false);
   const [workout, setWorkout] = useState(() =>
@@ -241,9 +248,9 @@ export function TodayView({ bundle }: TodayViewProps) {
 
       <div className="phase-banner">
         <span className="status-pill">
-          <span /> Phase 4 live
+          <span /> Phase 5 live
         </span>
-        <span className="build-label">WC-P4-0810</span>
+        <span className="build-label">WC-P5-0810</span>
       </div>
 
       <section className="today-hero" aria-labelledby="today-workout-title">
@@ -328,7 +335,18 @@ export function TodayView({ bundle }: TodayViewProps) {
         )}
 
         <button
-          className="primary-button"
+          className="primary-button start-workout-button"
+          type="button"
+          onClick={() => onStartWorkout(workout)}
+        >
+          {activeSession && activeSession.status !== 'completed'
+            ? 'Resume active workout'
+            : 'Start workout'}
+          <Icon name="arrow" size={20} />
+        </button>
+
+        <button
+          className="review-workout-button"
           type="button"
           aria-expanded={showWorkout}
           onClick={() => setShowWorkout(!showWorkout)}
@@ -463,8 +481,9 @@ export function TodayView({ bundle }: TodayViewProps) {
       </section>
 
       <p className="phase-boundary-note">
-        Central recalibration is live. Active set logging and the workout
-        execution surface begin in Phase 5 after approval.
+        Active logging, editing, rest, alternatives, combined supersets, notes,
+        Plate Math, demonstrations, and resume are live. Adaptive coaching
+        remains gated to Phase 6.
       </p>
 
       {pending && (

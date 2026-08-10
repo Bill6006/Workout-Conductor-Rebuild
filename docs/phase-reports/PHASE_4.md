@@ -1,6 +1,6 @@
 # Phase 4 Report — Central Recalibration Engine
 
-Status: **YELLOW — awaiting user Android review**
+Status: **GREEN — approved by user on 2026-08-10**
 
 Phase 3 is approved GREEN. Phase 4 delivers one typed, deterministic recalibration path for whole-plan rebuilds, future-only repairs, and one-slot substitutions. All computation remains browser-local.
 
@@ -67,4 +67,4 @@ Phase 3 is approved GREEN. Phase 4 delivers one typed, deterministic recalibrati
 
 ## Review gate
 
-Phase 5 has not started. Phase 4 remains YELLOW until the user responds with `GREEN - NEXT PHASE`.
+Phase 4 was approved with `GREEN - NEXT PHASE`. Phase 5 proceeded under its own review gate.

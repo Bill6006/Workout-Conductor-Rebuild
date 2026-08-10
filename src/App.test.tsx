@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import App from './App';
 
@@ -11,7 +17,16 @@ async function openSyntheticDemo() {
   await screen.findByRole('heading', { name: 'Ready, Demo.' });
 }
 
-describe('Phase 4 central recalibration', () => {
+async function startActiveWorkout() {
+  await openSyntheticDemo();
+  fireEvent.click(screen.getByRole('button', { name: 'Start workout' }));
+  await screen.findByRole('heading', {
+    name: 'Biceps + Triceps hybrid',
+    level: 1,
+  });
+}
+
+describe('Phase 5 active workout and logging', () => {
   it('starts with the short private onboarding welcome', async () => {
     render(<App />);
 
@@ -29,8 +44,8 @@ describe('Phase 4 central recalibration', () => {
   it('saves a synthetic demo and renders the useful Today dashboard', async () => {
     await openSyntheticDemo();
 
-    expect(screen.getByText('Phase 4 live')).toBeInTheDocument();
-    expect(screen.getByText('WC-P4-0810')).toBeInTheDocument();
+    expect(screen.getByText('Phase 5 live')).toBeInTheDocument();
+    expect(screen.getByText('WC-P5-0810')).toBeInTheDocument();
     expect(screen.getByText('Generated locally')).toBeInTheDocument();
     const duration = screen.getByRole('combobox', { name: 'Workout length' });
     expect(duration).toHaveValue('default');
@@ -159,5 +174,95 @@ describe('Phase 4 central recalibration', () => {
         name: 'Profile, settings, and saved locations were written and verified.',
       }),
     ).toBeInTheDocument();
+  });
+
+  it('starts a premium active workout and logs a one-tap prefilled set', async () => {
+    await startActiveWorkout();
+    expect(screen.getByText('Active workout')).toBeInTheDocument();
+    expect(screen.getByText('WC-P5-0810')).toBeInTheDocument();
+    expect(screen.getByRole('spinbutton', { name: 'Weight' })).toHaveValue(40);
+    expect(screen.getByRole('spinbutton', { name: 'Reps' })).toHaveValue(8);
+    expect(screen.getByRole('spinbutton', { name: 'RIR' })).toHaveValue(2);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Log set' }));
+    expect(
+      await screen.findByRole('region', { name: 'Rest timer' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('40 lb × 8 · 2 RIR')).toBeInTheDocument();
+    expect(
+      screen.getAllByText(/Set saved and verified locally/).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it('corrects a completed set inline without adding a record or timer', async () => {
+    await startActiveWorkout();
+    fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Log set' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    const editForm = screen.getByRole('form', {
+      name: /Edit working set logger/,
+    });
+    fireEvent.change(
+      within(editForm).getByRole('spinbutton', { name: 'Weight' }),
+      {
+        target: { value: '42.5' },
+      },
+    );
+    fireEvent.click(
+      within(editForm).getByRole('button', { name: 'Save correction' }),
+    );
+    expect(screen.getByText('42.5 lb × 8 · 2 RIR')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Edit' })).toHaveLength(1);
+    expect(
+      screen.getAllByText(
+        /Completed set corrected without adding a set or rest timer/,
+      ).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it('opens instructions, ranked alternatives, and replaces only the current exercise', async () => {
+    await startActiveWorkout();
+    fireEvent.click(
+      screen.getByRole('button', { name: /Open demonstration for Pull-Up/ }),
+    );
+    const guide = screen.getByRole('dialog', { name: 'Pull-Up' });
+    expect(
+      within(guide).getByText('Original diagram guide'),
+    ).toBeInTheDocument();
+    expect(
+      within(guide).getByRole('button', { name: 'Pause guide' }),
+    ).toBeEnabled();
+    fireEvent.click(within(guide).getByRole('button', { name: 'Close' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Alternatives' }));
+    const alternatives = screen.getByRole('dialog', { name: 'Alternatives' });
+    expect(within(alternatives).getAllByText(/% match/).length).toBeGreaterThan(
+      0,
+    );
+    fireEvent.click(
+      within(alternatives).getAllByRole('button', {
+        name: 'Use this exercise',
+      })[0],
+    );
+    expect(
+      screen.getAllByText(/Only this exercise changed/).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it('pauses and resumes at the exact saved workout position', async () => {
+    await startActiveWorkout();
+    fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
+    const dialog = screen.getByRole('dialog', { name: 'Your place is saved.' });
+    expect(
+      within(dialog).getByText(/Completed records remain verified locally/),
+    ).toBeInTheDocument();
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Resume workout' }),
+    );
+    expect(
+      screen.queryByRole('dialog', { name: 'Your place is saved.' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeEnabled();
   });
 });
