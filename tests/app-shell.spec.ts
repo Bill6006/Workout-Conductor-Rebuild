@@ -14,7 +14,9 @@ test('renders an Android-ready Phase 0 shell with working navigation', async ({
   ).toBeVisible();
 
   await page.getByRole('button', { name: 'Plan' }).click();
-  await expect(page.getByRole('heading', { name: 'Plan' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Plan', exact: true }),
+  ).toBeVisible();
   await expect(page.getByText('WC-P0-0810')).toBeVisible();
 
   await page.getByRole('button', { name: 'Today' }).click();
