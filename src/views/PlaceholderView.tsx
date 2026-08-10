@@ -1,7 +1,7 @@
 import { Icon, type IconName } from '../components/Icon';
 
 type PlaceholderViewProps = {
-  tab: 'workout' | 'progress';
+  tab: 'progress';
 };
 
 const content: Record<
@@ -14,13 +14,6 @@ const content: Record<
     phase: string;
   }
 > = {
-  workout: {
-    eyebrow: 'Session space',
-    title: 'Workout',
-    heading: 'Your workout preview is ready on Today.',
-    copy: 'Active logging, timers, alternatives, and recalibration remain intentionally reserved for their approved phases.',
-    phase: 'Active experience · Phase 5',
-  },
   progress: {
     eyebrow: 'Clear evidence',
     title: 'Progress',
@@ -56,8 +49,8 @@ export function PlaceholderView({ tab }: PlaceholderViewProps) {
       </section>
       <section className="build-card">
         <p className="eyebrow">Current visible build</p>
-        <strong>WC-P1-0810</strong>
-        <span>Phase 1 · Product foundation</span>
+        <strong>WC-P2-0810</strong>
+        <span>Phase 2 · Exercise intelligence</span>
       </section>
     </>
   );

@@ -8,9 +8,9 @@ https://bill6006.github.io/Workout-Conductor-Rebuild/
 
 ## Current scope
 
-Phase 1 adds focused onboarding, editable athlete and training preferences, saved location/equipment profiles, a clearly synthetic Today preview, and a validated local data foundation. Small settings use `localStorage`; durable profile data uses IndexedDB with schema validation and write/read-back verification. Export/import is a deliberately limited foundation for later migration work.
+Phase 2 adds a curated, runtime-validated exercise catalog; muscle, movement, equipment, and progression models; reusable conflict validation; deterministic alternative ranking; strict custom exercise/media schemas; and an original development-media manifest with documented licensing. The live Workout tab exposes a safe catalog and one-slot swap preview without claiming to generate or mutate workouts.
 
-Workout catalog reconciliation and workout generation remain gated to later phases.
+Workout generation, central recalibration, active logging, and production demonstration coverage remain gated to later phases.
 
 ## Local development
 

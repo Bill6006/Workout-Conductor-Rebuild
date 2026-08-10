@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" role="img" aria-labelledby="title desc">
+  <title id="title">Original arm movement placeholder</title>
+  <desc id="desc">Diagram showing a simplified athlete curling two dumbbells.</desc>
+  <defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#1c2015"/><stop offset="1" stop-color="#090c0a"/></linearGradient></defs>
+  <rect width="320" height="200" rx="28" fill="url(#bg)"/>
+  <circle cx="160" cy="59" r="15" fill="#f4f7f2"/>
+  <path d="M160 77v66m0-50-31 24m31-24 31 24m-31 26-20 30m20-30 20 30" fill="none" stroke="#f4f7f2" stroke-width="11" stroke-linecap="round"/>
+  <path d="M129 117 113 91m78 26 16-26" fill="none" stroke="#b8ff31" stroke-width="10" stroke-linecap="round"/>
+  <path d="M101 87h24m70 0h24" stroke="#b8ff31" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="101" cy="87" r="7" fill="#b8ff31"/><circle cx="125" cy="87" r="7" fill="#b8ff31"/><circle cx="195" cy="87" r="7" fill="#b8ff31"/><circle cx="219" cy="87" r="7" fill="#b8ff31"/>
+  <text x="20" y="30" fill="#91a095" font-family="system-ui,sans-serif" font-size="12" font-weight="700" letter-spacing="2">ORIGINAL PLACEHOLDER · ARMS</text>
+</svg>

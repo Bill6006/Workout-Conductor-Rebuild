@@ -55,9 +55,9 @@ export function TodayView({ bundle }: TodayViewProps) {
 
       <div className="phase-banner">
         <span className="status-pill">
-          <span /> Phase 1 live
+          <span /> Phase 2 live
         </span>
-        <span className="build-label">WC-P1-0810</span>
+        <span className="build-label">WC-P2-0810</span>
       </div>
 
       <section className="today-hero" aria-labelledby="today-workout-title">

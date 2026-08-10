@@ -11,7 +11,7 @@ async function openSyntheticDemo() {
   await screen.findByRole('heading', { name: 'Ready, Demo.' });
 }
 
-describe('Phase 1 product foundation', () => {
+describe('Phase 2 exercise intelligence foundation', () => {
   it('starts with the short private onboarding welcome', async () => {
     render(<App />);
 
@@ -29,8 +29,8 @@ describe('Phase 1 product foundation', () => {
   it('saves a synthetic demo and renders the useful Today dashboard', async () => {
     await openSyntheticDemo();
 
-    expect(screen.getByText('Phase 1 live')).toBeInTheDocument();
-    expect(screen.getByText('WC-P1-0810')).toBeInTheDocument();
+    expect(screen.getByText('Phase 2 live')).toBeInTheDocument();
+    expect(screen.getByText('WC-P2-0810')).toBeInTheDocument();
     expect(screen.getByText('Synthetic demo')).toBeInTheDocument();
     expect(
       screen.getByRole('combobox', { name: 'Workout length' }),
@@ -53,6 +53,30 @@ describe('Phase 1 product foundation', () => {
       await screen.findByRole('heading', { name: 'Plan', level: 1 }),
     ).toBeInTheDocument();
     expect(screen.getByText('Demo Home Gym')).toBeInTheDocument();
+  });
+
+  it('ranks a safe alternative and changes only the preview slot', async () => {
+    await openSyntheticDemo();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Workout' }));
+    expect(
+      await screen.findByRole('heading', { name: 'Catalog', level: 1 }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('28 movements. Every decision has metadata.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/incompatible options hidden/)).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Use Push-Up in preview slot',
+      }),
+    );
+    expect(
+      screen.getByText(
+        'Dumbbell Bench Press → Push-Up. Only this preview slot changed.',
+      ),
+    ).toBeInTheDocument();
   });
 
   it('edits and verifies the local profile from Settings', async () => {

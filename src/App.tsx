@@ -7,6 +7,7 @@ import type { AppBundle } from './domain/models';
 import { importBackupFoundation } from './storage/backup';
 import { loadBundle, saveBundleVerified } from './storage/database';
 import { saveSettingsVerified } from './storage/settings';
+import { CatalogView } from './views/CatalogView';
 import { PlaceholderView } from './views/PlaceholderView';
 import { PlanView } from './views/PlanView';
 import { SettingsView } from './views/SettingsView';
@@ -101,7 +102,7 @@ export default function App() {
         </div>
         <span className="loading-pulse" />
         <p>Opening your private training space…</p>
-        <small>WC-P1-0810</small>
+        <small>WC-P2-0810</small>
       </div>
     );
   }
@@ -131,9 +132,8 @@ export default function App() {
       )}
       <main className="page-content" id="main-content">
         {activeTab === 'today' && <TodayView bundle={bundle} />}
-        {(activeTab === 'workout' || activeTab === 'progress') && (
-          <PlaceholderView tab={activeTab} />
-        )}
+        {activeTab === 'workout' && <CatalogView />}
+        {activeTab === 'progress' && <PlaceholderView tab="progress" />}
         {activeTab === 'plan' && <PlanView bundle={bundle} />}
         {activeTab === 'settings' && (
           <SettingsView

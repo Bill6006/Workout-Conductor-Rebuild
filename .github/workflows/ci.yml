@@ -28,6 +28,10 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
+      - name: Privacy scan
+        run: npm run privacy:scan
+      - name: Verify production build
+        run: npm run verify:build
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Android shell test
