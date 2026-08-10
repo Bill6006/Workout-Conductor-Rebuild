@@ -8,11 +8,11 @@ https://bill6006.github.io/Workout-Conductor-Rebuild/
 
 ## Current scope
 
-Phase 3 adds deterministic, browser-local workout generation. The Today screen now turns the saved profile, goals, schedule, location, equipment, limitations, weekly-volume state, recent muscle exposure, preferences, and technique toggles into a complete pre-workout plan for 15, 30, 45, or the athlete's default duration.
+Phase 4 adds one centralized, browser-local recalibration engine. The Today screen can now rebuild a whole pre-workout plan, repair only future work after the first completed set, or substitute one safe exercise when equipment is busy. Completed and explicitly locked work is immutable, Equipment Busy remains session-only, and every run starts from a recoverable snapshot.
 
-Generated plans combine progression anchors with hypertrophy and specialization roles, estimate setup/work/rest time, attach non-working warm-ups, and can safely build two-move supersets, final drop sets, or goal-compatible circuits. Central in-workout recalibration, active logging, and production demonstration coverage remain gated to later phases.
+Duration, location, equipment, pain/discomfort, recovery/readiness, settings, performance, target-load, skip, replacement, resume, and intensity changes share one typed request and trigger registry. The blocking evaluation overlay appears immediately, can be safely cancelled, and reports a compact result without using a server or remote model. Active workout logging and execution controls remain gated to Phase 5.
 
-See [docs/workout-engine.md](docs/workout-engine.md) for the deterministic generation contract and [docs/phase-reports/PHASE_3.md](docs/phase-reports/PHASE_3.md) for acceptance evidence.
+See [docs/recalibration-engine.md](docs/recalibration-engine.md) for the recalibration contract and [docs/phase-reports/PHASE_4.md](docs/phase-reports/PHASE_4.md) for acceptance evidence.
 
 ## Local development
 

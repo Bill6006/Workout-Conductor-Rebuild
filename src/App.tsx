@@ -102,7 +102,7 @@ export default function App() {
         </div>
         <span className="loading-pulse" />
         <p>Opening your private training space…</p>
-        <small>WC-P3-0810</small>
+        <small>WC-P4-0810</small>
       </div>
     );
   }

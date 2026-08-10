@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('runs the local Phase 3 generator and persists profile edits', async ({
+test('runs the Phase 4 recalibration engine and persists profile edits', async ({
   page,
 }) => {
   await page.goto('./', { waitUntil: 'domcontentloaded' });
@@ -16,7 +16,7 @@ test('runs the local Phase 3 generator and persists profile edits', async ({
   await expect(
     page.getByRole('heading', { name: 'Ready, Demo.' }),
   ).toBeVisible();
-  await expect(page.getByText('Phase 3 live')).toBeVisible();
+  await expect(page.getByText('Phase 4 live')).toBeVisible();
   await expect(
     page.getByText('Generated locally', { exact: true }),
   ).toBeVisible();
@@ -24,7 +24,17 @@ test('runs the local Phase 3 generator and persists profile edits', async ({
   const duration = page.getByRole('combobox', { name: 'Workout length' });
   for (const option of ['15', '30', '45', 'default']) {
     await duration.selectOption(option);
+    await expect(
+      page.getByRole('status', { name: 'Recalibrating workout' }),
+    ).toBeVisible();
     await expect(duration).toHaveValue(option);
+    await expect(
+      page.getByText(
+        option === 'default'
+          ? /Recalibrated to default time/
+          : new RegExp(`Recalibrated to ${option} min`),
+      ),
+    ).toBeVisible();
     await expect(
       page.getByText(
         option === 'default'
@@ -37,6 +47,11 @@ test('runs the local Phase 3 generator and persists profile edits', async ({
   await page.getByRole('button', { name: 'Review generated workout' }).click();
   await expect(page.getByText('strength anchor')).toBeVisible();
   await expect(page.getByText('2-move superset')).toBeVisible();
+  await page
+    .getByRole('combobox', { name: 'Equipment status' })
+    .selectOption('pull-up-bar');
+  await expect(page.getByText(/1 exercise substituted/)).toBeVisible();
+  await expect(page.getByText('Session only')).toBeVisible();
 
   await page.getByRole('button', { name: 'Plan' }).click();
   await expect(
@@ -123,7 +138,7 @@ test('presents onboarding as five focused editable steps', async ({ page }) => {
   ).toBeEnabled();
 });
 
-test('keeps the Phase 3 generated workout responsive at supported mobile widths', async ({
+test('keeps Phase 4 recalibration responsive at supported mobile widths', async ({
   page,
 }) => {
   await page.goto('./', { waitUntil: 'domcontentloaded' });
@@ -156,5 +171,9 @@ test('keeps the Phase 3 generated workout responsive at supported mobile widths'
   await page
     .getByRole('combobox', { name: 'Workout length' })
     .selectOption('15');
+  await expect(
+    page.getByRole('status', { name: 'Recalibrating workout' }),
+  ).toBeVisible();
+  await expect(page.getByText(/Recalibrated to 15 min/)).toBeVisible();
   await expect(page.getByText(/Generated for 15 minutes/)).toBeVisible();
 });

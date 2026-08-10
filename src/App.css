@@ -1293,6 +1293,219 @@
   text-align: center;
 }
 
+/* Phase 4 central recalibration */
+
+.recalibration-summary,
+.recalibration-error {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 0 2px 14px;
+  padding: 10px 11px;
+  border: 1px solid rgba(200, 255, 61, 0.13);
+  border-radius: 13px;
+  color: #a9c762;
+  background: rgba(200, 255, 61, 0.045);
+}
+
+.recalibration-summary strong,
+.recalibration-summary span {
+  display: block;
+}
+
+.recalibration-summary strong {
+  color: #cdd3ce;
+  font-size: 0.62rem;
+  line-height: 1.45;
+}
+
+.recalibration-summary span {
+  margin-top: 3px;
+  color: #727b73;
+  font-size: 0.52rem;
+  text-transform: capitalize;
+}
+
+.recalibration-error {
+  border-color: rgba(255, 151, 115, 0.22);
+  color: #ffb49c;
+  background: rgba(255, 111, 75, 0.06);
+  font-size: 0.6rem;
+  line-height: 1.45;
+}
+
+.exercise-row--changed {
+  border-color: rgba(200, 255, 61, 0.25);
+  background: linear-gradient(90deg, rgba(200, 255, 61, 0.055), #121516 38%);
+  animation: recalibrated-row 420ms ease-out;
+}
+
+@keyframes recalibrated-row {
+  from {
+    opacity: 0.55;
+    transform: translateY(4px);
+  }
+}
+
+.session-adjustment-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(130px, 0.8fr);
+  gap: 14px;
+  margin-top: 13px;
+  padding: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.065);
+  border-radius: 18px;
+  background: #121516;
+}
+
+.session-adjustment-card h3 {
+  margin: 0;
+  color: #dce1dd;
+  font-size: 0.78rem;
+}
+
+.session-adjustment-card p:not(.eyebrow) {
+  margin: 5px 0 0;
+  color: #727a73;
+  font-size: 0.59rem;
+  line-height: 1.45;
+}
+
+.session-adjustment-card label {
+  display: grid;
+  align-content: center;
+  gap: 6px;
+}
+
+.session-adjustment-card label > span {
+  color: #7a837b;
+  font-size: 0.54rem;
+  font-weight: 750;
+}
+
+.session-adjustment-card select {
+  width: 100%;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  outline: 0;
+  color: #dce1dd;
+  background: #191d1b;
+  font-size: 0.62rem;
+  font-weight: 750;
+}
+
+.session-only-chip {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  color: #91a369;
+  font-size: 0.48rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.calibration-overlay {
+  position: fixed;
+  z-index: 120;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: rgba(5, 7, 7, 0.86);
+  backdrop-filter: blur(12px);
+}
+
+.calibration-card {
+  width: min(100%, 370px);
+  padding: 25px;
+  border: 1px solid rgba(200, 255, 61, 0.17);
+  border-radius: 24px;
+  background: linear-gradient(145deg, #191f19, #101312 70%);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.5);
+}
+
+.calibration-spinner {
+  width: 42px;
+  height: 42px;
+  margin-bottom: 21px;
+  border: 3px solid rgba(200, 255, 61, 0.13);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: calibration-spin 720ms linear infinite;
+}
+
+@keyframes calibration-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.calibration-card h2 {
+  margin: 2px 0 15px;
+  color: #f5f7f5;
+  font-size: 1.4rem;
+  letter-spacing: -0.04em;
+}
+
+.calibration-card ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.calibration-card li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #929a93;
+  font-size: 0.65rem;
+}
+
+.calibration-card li span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 12px rgba(200, 255, 61, 0.45);
+}
+
+.calibration-card button {
+  width: 100%;
+  margin-top: 20px;
+  padding: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  color: #aab1ab;
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 0.63rem;
+  font-weight: 750;
+}
+
+@media (max-width: 370px) {
+  .session-adjustment-card {
+    grid-template-columns: 1fr;
+  }
+
+  .session-only-chip {
+    position: static;
+    justify-self: start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .calibration-spinner,
+  .exercise-row--changed {
+    animation: none;
+  }
+}
+
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

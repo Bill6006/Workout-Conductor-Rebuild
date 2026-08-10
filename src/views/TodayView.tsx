@@ -1,18 +1,38 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { equipmentById } from '../catalog/equipment';
+import { exerciseById } from '../catalog/exercises';
 import { muscleById } from '../catalog/muscles';
+import type { EquipmentId } from '../catalog/schema';
 import type { AppBundle } from '../domain/models';
 import { Icon } from '../components/Icon';
 import {
-  generateWorkoutFromBundle,
+  generateWorkout,
+  generationInputFromBundle,
   workoutDurationOptions,
 } from '../engine/workoutGenerator/generateWorkout';
 import type {
   WorkoutBlock,
   WorkoutDuration,
 } from '../engine/workoutGenerator/schema';
+import { recalibrateWorkout } from '../engine/recalibration/recalibrateWorkout';
+import {
+  emptyCompletedWork,
+  type RecalibrationTrigger,
+  type SuccessfulRecalibration,
+} from '../engine/recalibration/schema';
+import {
+  evaluationMessagesFor,
+  recalibrationTriggerRegistry,
+} from '../engine/recalibration/triggerRegistry';
 
 type TodayViewProps = {
   bundle: AppBundle;
+};
+
+type PendingRecalibration = {
+  trigger: RecalibrationTrigger;
+  label: string;
+  messages: string[];
 };
 
 function initials(name: string) {
@@ -47,18 +67,162 @@ function blockMoves(block: WorkoutBlock) {
 export function TodayView({ bundle }: TodayViewProps) {
   const [duration, setDuration] = useState<WorkoutDuration>('default');
   const [showWorkout, setShowWorkout] = useState(false);
-  const profile = bundle.profile!;
-  const workout = useMemo(
-    () => generateWorkoutFromBundle(bundle, duration),
-    [bundle, duration],
+  const [workout, setWorkout] = useState(() =>
+    generateWorkout(generationInputFromBundle(bundle, 'default')),
   );
+  const [pending, setPending] = useState<PendingRecalibration | null>(null);
+  const [lastRecalibration, setLastRecalibration] =
+    useState<SuccessfulRecalibration | null>(null);
+  const [recalibrationError, setRecalibrationError] = useState<string | null>(
+    null,
+  );
+  const [busyEquipment, setBusyEquipment] = useState<EquipmentId | ''>('');
+  const requestSequence = useRef(0);
+  const profile = bundle.profile!;
   const location =
     bundle.locations.find((item) => item.isDefault) ?? bundle.locations[0];
+  const usedEquipment = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          workout.blocks.flatMap((block) =>
+            blockMoves(block).flatMap(
+              (move) =>
+                exerciseById.get(move.exerciseId)?.equipment.required ?? [],
+            ),
+          ),
+        ),
+      ).filter(
+        (equipment): equipment is EquipmentId => equipment !== 'bodyweight',
+      ),
+    [workout],
+  );
+  const changedExerciseIds = useMemo(
+    () =>
+      new Set(
+        lastRecalibration?.summary.changes.flatMap((change) =>
+          change.kind === 'added' ||
+          change.kind === 'substituted' ||
+          change.kind === 'sets'
+            ? change.exerciseIds
+            : [],
+        ) ?? [],
+      ),
+    [lastRecalibration],
+  );
   const dayLabel = new Intl.DateTimeFormat('en-US', {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
   }).format(new Date());
+
+  async function runRecalibration(args: {
+    trigger: RecalibrationTrigger;
+    nextDuration?: WorkoutDuration;
+    affectedExerciseId?: string | null;
+    busyEquipmentIds?: EquipmentId[];
+    reason: string;
+  }) {
+    const nextDuration = args.nextDuration ?? duration;
+    const sequence = requestSequence.current + 1;
+    requestSequence.current = sequence;
+    setRecalibrationError(null);
+    setPending({
+      trigger: args.trigger,
+      label: recalibrationTriggerRegistry[args.trigger].label,
+      messages: evaluationMessagesFor(args.trigger, nextDuration),
+    });
+
+    // Yield one brief visual transition so the blocking calibration state is
+    // perceivable without making the local engine artificially slow.
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 160));
+    if (requestSequence.current !== sequence) return;
+
+    const timestamp = new Date().toISOString();
+    const result = recalibrateWorkout({
+      requestId: `today-${args.trigger}-${sequence}`,
+      trigger: args.trigger,
+      currentWorkout: workout,
+      generationInput: generationInputFromBundle(bundle, duration),
+      completedWork: emptyCompletedWork,
+      lockedExerciseIds: [],
+      pinnedExerciseIds: [],
+      userSelectedExerciseIds: [],
+      acceptedAlternativeIds: [],
+      currentExerciseId: null,
+      affectedExerciseId: args.affectedExerciseId ?? null,
+      replacementExerciseId: null,
+      requestedDuration: nextDuration,
+      elapsedSeconds: 0,
+      locationOverride: null,
+      unavailableEquipmentIds: [],
+      sessionBusyEquipmentIds: args.busyEquipmentIds ?? [],
+      settingOverrides: {},
+      painFlags: [],
+      recoveryOverride: null,
+      readinessOverride: null,
+      performanceChanges: [],
+      intensityRequest: null,
+      endByExactTime: false,
+      reason: args.reason,
+      timestamp,
+    });
+    if (requestSequence.current !== sequence) return;
+
+    if (result.status === 'success') {
+      setWorkout(result.workout);
+      setLastRecalibration(result);
+    } else {
+      setWorkout(result.workout);
+      setRecalibrationError(
+        `${result.errorMessage} Previous valid workout restored.`,
+      );
+    }
+    setPending(null);
+  }
+
+  function cancelRecalibration() {
+    requestSequence.current += 1;
+    setDuration(workout.duration);
+    setPending(null);
+  }
+
+  function handleDurationChange(nextDuration: WorkoutDuration) {
+    setDuration(nextDuration);
+    void runRecalibration({
+      trigger: 'duration-change',
+      nextDuration,
+      reason:
+        nextDuration === 'default'
+          ? 'The complete default session was requested'
+          : `The available workout time changed to ${nextDuration} minutes`,
+    });
+  }
+
+  function handleEquipmentBusy(nextEquipment: EquipmentId | '') {
+    setBusyEquipment(nextEquipment);
+    if (!nextEquipment) {
+      void runRecalibration({
+        trigger: 'equipment-profile-change',
+        reason: 'All session equipment became available again',
+      });
+      return;
+    }
+    const affected = workout.blocks
+      .flatMap(blockMoves)
+      .find((move) =>
+        exerciseById
+          .get(move.exerciseId)
+          ?.equipment.required.includes(nextEquipment),
+      );
+    if (!affected) return;
+    void runRecalibration({
+      trigger: 'equipment-busy',
+      affectedExerciseId: affected.exerciseId,
+      busyEquipmentIds: [nextEquipment],
+      reason: `${equipmentById.get(nextEquipment)?.name ?? nextEquipment} is busy for this session`,
+    });
+  }
 
   return (
     <>
@@ -77,9 +241,9 @@ export function TodayView({ bundle }: TodayViewProps) {
 
       <div className="phase-banner">
         <span className="status-pill">
-          <span /> Phase 3 live
+          <span /> Phase 4 live
         </span>
-        <span className="build-label">WC-P3-0810</span>
+        <span className="build-label">WC-P4-0810</span>
       </div>
 
       <section className="today-hero" aria-labelledby="today-workout-title">
@@ -109,8 +273,9 @@ export function TodayView({ bundle }: TodayViewProps) {
             <select
               aria-describedby="duration-preview-note"
               value={duration}
+              disabled={Boolean(pending)}
               onChange={(event) =>
-                setDuration(event.target.value as WorkoutDuration)
+                handleDurationChange(event.target.value as WorkoutDuration)
               }
             >
               {workoutDurationOptions.map((option) => (
@@ -133,10 +298,34 @@ export function TodayView({ bundle }: TodayViewProps) {
           aria-live="polite"
         >
           Generated for{' '}
-          {duration === 'default' ? 'default time' : `${duration} minutes`} ·
-          estimated {workout.estimatedMinutes} min · {workout.blocks.length}{' '}
+          {workout.duration === 'default'
+            ? 'default time'
+            : `${workout.duration} minutes`}{' '}
+          · estimated {workout.estimatedMinutes} min · {workout.blocks.length}{' '}
           plan blocks
         </p>
+
+        {lastRecalibration && (
+          <div className="recalibration-summary" aria-live="polite">
+            <Icon name="check" size={16} />
+            <div>
+              <strong>{lastRecalibration.summary.compact}</strong>
+              <span>
+                {lastRecalibration.scope} recalibration ·{' '}
+                {lastRecalibration.elapsedMilliseconds.toFixed(1)} ms
+                {lastRecalibration.summary.protectedRecords > 0
+                  ? ` · ${lastRecalibration.summary.protectedRecords} protected records`
+                  : ''}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {recalibrationError && (
+          <div className="recalibration-error" role="alert">
+            <Icon name="shield" size={16} /> {recalibrationError}
+          </div>
+        )}
 
         <button
           className="primary-button"
@@ -163,7 +352,10 @@ export function TodayView({ bundle }: TodayViewProps) {
           </div>
           <div className="exercise-list">
             {workout.blocks.map((block, index) => (
-              <article className="exercise-row" key={block.blockId}>
+              <article
+                className={`exercise-row${blockMoves(block).some((move) => changedExerciseIds.has(move.exerciseId)) ? ' exercise-row--changed' : ''}`}
+                key={block.blockId}
+              >
                 <span className="exercise-index">
                   {String(index + 1).padStart(2, '0')}
                 </span>
@@ -184,6 +376,43 @@ export function TodayView({ bundle }: TodayViewProps) {
             ))}
           </div>
           <p className="warmup-note">{workout.warmupSummary}</p>
+
+          <section
+            className="session-adjustment-card"
+            aria-labelledby="session-adjustment-title"
+          >
+            <div>
+              <p className="eyebrow">Session adjustment</p>
+              <h3 id="session-adjustment-title">Equipment availability</h3>
+              <p>
+                Busy equipment changes one safe slot and is never saved to your
+                location profile.
+              </p>
+            </div>
+            <label>
+              <span>Equipment status</span>
+              <select
+                value={busyEquipment}
+                disabled={Boolean(pending)}
+                onChange={(event) =>
+                  handleEquipmentBusy(event.target.value as EquipmentId | '')
+                }
+              >
+                <option value="">All available</option>
+                {Array.from(
+                  new Set([
+                    ...usedEquipment,
+                    ...(busyEquipment ? [busyEquipment] : []),
+                  ]),
+                ).map((equipment) => (
+                  <option key={equipment} value={equipment}>
+                    {equipmentById.get(equipment)?.name ?? equipment} busy
+                  </option>
+                ))}
+              </select>
+            </label>
+            <span className="session-only-chip">Session only</span>
+          </section>
         </section>
       )}
 
@@ -234,9 +463,34 @@ export function TodayView({ bundle }: TodayViewProps) {
       </section>
 
       <p className="phase-boundary-note">
-        Pre-workout generation is live. In-workout recalibration and logging
-        begin in the next approved phases.
+        Central recalibration is live. Active set logging and the workout
+        execution surface begin in Phase 5 after approval.
       </p>
+
+      {pending && (
+        <div
+          className="calibration-overlay"
+          role="status"
+          aria-live="assertive"
+          aria-label="Recalibrating workout"
+        >
+          <section className="calibration-card">
+            <div className="calibration-spinner" aria-hidden="true" />
+            <p className="overline">{pending.label}</p>
+            <h2>Rebuilding your workout</h2>
+            <ul>
+              {pending.messages.map((message) => (
+                <li key={message}>
+                  <span /> {message}
+                </li>
+              ))}
+            </ul>
+            <button type="button" onClick={cancelRecalibration}>
+              Keep current workout
+            </button>
+          </section>
+        </div>
+      )}
     </>
   );
 }

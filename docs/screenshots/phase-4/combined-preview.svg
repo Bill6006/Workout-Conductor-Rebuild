@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1390" height="1055" viewBox="0 0 1390 1055">
+  <rect width="1390" height="1055" fill="#070b09" />
+  <text x="42" y="54" fill="#f5f7f2" font-family="Arial, sans-serif" font-size="30" font-weight="700">Workout Conductor · Phase 4</text>
+  <text x="42" y="86" fill="#a7b0a5" font-family="Arial, sans-serif" font-size="17">Central recalibration · immediate evaluation · session-only equipment repair</text>
+  <image href="calibration-loading-412x915.png" x="42" y="116" width="412" height="915" />
+  <image href="recalibration-412x915.png" x="489" y="116" width="412" height="915" />
+  <image href="equipment-busy-412x915.png" x="936" y="116" width="412" height="915" />
+</svg>

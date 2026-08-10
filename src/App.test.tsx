@@ -11,7 +11,7 @@ async function openSyntheticDemo() {
   await screen.findByRole('heading', { name: 'Ready, Demo.' });
 }
 
-describe('Phase 3 local workout generation', () => {
+describe('Phase 4 central recalibration', () => {
   it('starts with the short private onboarding welcome', async () => {
     render(<App />);
 
@@ -29,8 +29,8 @@ describe('Phase 3 local workout generation', () => {
   it('saves a synthetic demo and renders the useful Today dashboard', async () => {
     await openSyntheticDemo();
 
-    expect(screen.getByText('Phase 3 live')).toBeInTheDocument();
-    expect(screen.getByText('WC-P3-0810')).toBeInTheDocument();
+    expect(screen.getByText('Phase 4 live')).toBeInTheDocument();
+    expect(screen.getByText('WC-P4-0810')).toBeInTheDocument();
     expect(screen.getByText('Generated locally')).toBeInTheDocument();
     const duration = screen.getByRole('combobox', { name: 'Workout length' });
     expect(duration).toHaveValue('default');
@@ -60,14 +60,57 @@ describe('Phase 3 local workout generation', () => {
     expect(screen.getByText('Demo Home Gym')).toBeInTheDocument();
   });
 
-  it('regenerates immediately from the single duration dropdown', async () => {
+  it('shows the blocking calibration state and recalibrates from one duration dropdown', async () => {
     await openSyntheticDemo();
     const duration = screen.getByRole('combobox', { name: 'Workout length' });
     fireEvent.change(duration, { target: { value: '15' } });
+    expect(
+      screen.getByRole('status', { name: 'Recalibrating workout' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Workout length changed')).toBeInTheDocument();
+    expect(duration).toBeDisabled();
+    await waitFor(() => {
+      expect(screen.getByText(/Recalibrated to 15 min/)).toBeInTheDocument();
+    });
     expect(screen.getByText(/Generated for 15 minutes/)).toBeInTheDocument();
-    expect(screen.getByText(/estimated 14 min/)).toBeInTheDocument();
+    expect(duration).toBeEnabled();
     fireEvent.change(duration, { target: { value: '45' } });
+    await waitFor(() => {
+      expect(screen.getByText(/Recalibrated to 45 min/)).toBeInTheDocument();
+    });
     expect(screen.getByText(/Generated for 45 minutes/)).toBeInTheDocument();
+  });
+
+  it('uses Equipment Busy as a session-only one-slot recalibration', async () => {
+    await openSyntheticDemo();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Review generated workout' }),
+    );
+    const equipment = screen.getByRole('combobox', {
+      name: 'Equipment status',
+    });
+    fireEvent.change(equipment, { target: { value: 'pull-up-bar' } });
+    expect(screen.getByText('Equipment busy')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/1 exercise substituted/)).toBeInTheDocument();
+    });
+    expect(screen.getByText('Session only')).toBeInTheDocument();
+    expect(screen.getByText(/local recalibration/)).toBeInTheDocument();
+  });
+
+  it('cancels safely before a pending recalibration mutates the workout', async () => {
+    await openSyntheticDemo();
+    const duration = screen.getByRole('combobox', { name: 'Workout length' });
+    fireEvent.change(duration, { target: { value: '15' } });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Keep current workout' }),
+    );
+    expect(duration).toHaveValue('default');
+    expect(screen.getByText(/Generated for default time/)).toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 190));
+    expect(
+      screen.queryByText(/Recalibrated to 15 min/),
+    ).not.toBeInTheDocument();
   });
 
   it('ranks a safe alternative and changes only the preview slot', async () => {

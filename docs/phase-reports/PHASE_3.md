@@ -1,6 +1,6 @@
 # Phase 3 Report — Workout Generation and Duration Intelligence
 
-Status: **YELLOW — awaiting user Android review**
+Status: **GREEN — approved by the user on 2026-08-10**
 
 Phase 2 is approved GREEN. Phase 3 delivers the first real, deterministic workout generator on the Today screen. It uses the saved local profile and catalog intelligence to produce an explainable pre-workout plan without a server, account, random choice, or remote model call.
 
@@ -59,4 +59,4 @@ Phase 2 is approved GREEN. Phase 3 delivers the first real, deterministic workou
 
 ## Review gate
 
-Phase 4 has not started. Phase 3 remains YELLOW until the user responds with `GREEN - NEXT PHASE`.
+Phase 3 was approved with `GREEN - NEXT PHASE`. Phase 4 was then implemented as a separate gated delivery.
