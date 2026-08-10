@@ -8,9 +8,11 @@ https://bill6006.github.io/Workout-Conductor-Rebuild/
 
 ## Current scope
 
-Phase 2 adds a curated, runtime-validated exercise catalog; muscle, movement, equipment, and progression models; reusable conflict validation; deterministic alternative ranking; strict custom exercise/media schemas; and an original development-media manifest with documented licensing. The live Workout tab exposes a safe catalog and one-slot swap preview without claiming to generate or mutate workouts.
+Phase 3 adds deterministic, browser-local workout generation. The Today screen now turns the saved profile, goals, schedule, location, equipment, limitations, weekly-volume state, recent muscle exposure, preferences, and technique toggles into a complete pre-workout plan for 15, 30, 45, or the athlete's default duration.
 
-Workout generation, central recalibration, active logging, and production demonstration coverage remain gated to later phases.
+Generated plans combine progression anchors with hypertrophy and specialization roles, estimate setup/work/rest time, attach non-working warm-ups, and can safely build two-move supersets, final drop sets, or goal-compatible circuits. Central in-workout recalibration, active logging, and production demonstration coverage remain gated to later phases.
+
+See [docs/workout-engine.md](docs/workout-engine.md) for the deterministic generation contract and [docs/phase-reports/PHASE_3.md](docs/phase-reports/PHASE_3.md) for acceptance evidence.
 
 ## Local development
 

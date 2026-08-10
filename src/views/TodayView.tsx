@@ -1,21 +1,19 @@
-import { useState } from 'react';
-import { syntheticWorkout } from '../domain/defaults';
+import { useMemo, useState } from 'react';
+import { muscleById } from '../catalog/muscles';
 import type { AppBundle } from '../domain/models';
 import { Icon } from '../components/Icon';
+import {
+  generateWorkoutFromBundle,
+  workoutDurationOptions,
+} from '../engine/workoutGenerator/generateWorkout';
+import type {
+  WorkoutBlock,
+  WorkoutDuration,
+} from '../engine/workoutGenerator/schema';
 
 type TodayViewProps = {
   bundle: AppBundle;
 };
-
-const durationOptions = [
-  { value: '15', label: '15 minutes' },
-  { value: '30', label: '30 minutes' },
-  { value: '45', label: '45 minutes' },
-  {
-    value: 'default',
-    label: `Default time · ${syntheticWorkout.plannedMinutes} min`,
-  },
-] as const;
 
 function initials(name: string) {
   return name
@@ -26,10 +24,34 @@ function initials(name: string) {
     .toUpperCase();
 }
 
+function blockDetail(block: WorkoutBlock) {
+  if (block.kind === 'exercise') {
+    const move = block.prescription;
+    return `${move.sets} sets · ${move.repRange.min}–${move.repRange.max} reps · ${move.targetRir} RIR · ${move.restSeconds}s rest`;
+  }
+  return `${block.rounds} rounds · ${block.moves
+    .map((move) => `${move.repRange.min}–${move.repRange.max}`)
+    .join(' / ')} reps · ${block.restAfterRoundSeconds}s between rounds`;
+}
+
+function blockRole(block: WorkoutBlock) {
+  if (block.kind === 'superset') return '2-move superset';
+  if (block.kind === 'circuit') return `${block.moves.length}-move circuit`;
+  return block.prescription.progressionRole.replaceAll('-', ' ');
+}
+
+function blockMoves(block: WorkoutBlock) {
+  return block.kind === 'exercise' ? [block.prescription] : block.moves;
+}
+
 export function TodayView({ bundle }: TodayViewProps) {
-  const [duration, setDuration] = useState('default');
+  const [duration, setDuration] = useState<WorkoutDuration>('default');
   const [showWorkout, setShowWorkout] = useState(false);
   const profile = bundle.profile!;
+  const workout = useMemo(
+    () => generateWorkoutFromBundle(bundle, duration),
+    [bundle, duration],
+  );
   const location =
     bundle.locations.find((item) => item.isDefault) ?? bundle.locations[0];
   const dayLabel = new Intl.DateTimeFormat('en-US', {
@@ -55,26 +77,27 @@ export function TodayView({ bundle }: TodayViewProps) {
 
       <div className="phase-banner">
         <span className="status-pill">
-          <span /> Phase 2 live
+          <span /> Phase 3 live
         </span>
-        <span className="build-label">WC-P2-0810</span>
+        <span className="build-label">WC-P3-0810</span>
       </div>
 
       <section className="today-hero" aria-labelledby="today-workout-title">
         <div className="today-hero__glow" />
         <div className="today-hero__topline">
           <span className="synthetic-pill">
-            <Icon name="spark" size={14} /> Synthetic demo
+            <Icon name="spark" size={14} /> Generated locally
           </span>
           <span className="readiness-pill">
-            <span /> {syntheticWorkout.readiness}
+            <span /> Ready
           </span>
         </div>
         <p className="overline">Recommended today</p>
-        <h2 id="today-workout-title">{syntheticWorkout.title}</h2>
+        <h2 id="today-workout-title">{workout.title}</h2>
+        <p className="generation-goal">{workout.goal}</p>
         <div className="focus-row" aria-label="Muscle focus">
-          {syntheticWorkout.focus.map((muscle) => (
-            <span key={muscle}>{muscle}</span>
+          {workout.priorities.slice(0, 3).map((muscle) => (
+            <span key={muscle}>{muscleById.get(muscle)?.name ?? muscle}</span>
           ))}
         </div>
 
@@ -86,11 +109,13 @@ export function TodayView({ bundle }: TodayViewProps) {
             <select
               aria-describedby="duration-preview-note"
               value={duration}
-              onChange={(event) => setDuration(event.target.value)}
+              onChange={(event) =>
+                setDuration(event.target.value as WorkoutDuration)
+              }
             >
-              {durationOptions.map((option) => (
+              {workoutDurationOptions.map((option) => (
                 <option key={option.value} value={option.value}>
-                  {option.label}
+                  {option.label(profile.typicalDuration)}
                 </option>
               ))}
             </select>
@@ -102,9 +127,15 @@ export function TodayView({ bundle }: TodayViewProps) {
             <strong>{location?.name ?? 'Choose in Settings'}</strong>
           </div>
         </div>
-        <p className="preview-note" id="duration-preview-note">
-          Preview selection only. Intelligent duration recalibration arrives
-          with the approved generation phase.
+        <p
+          className="preview-note generation-summary"
+          id="duration-preview-note"
+          aria-live="polite"
+        >
+          Generated for{' '}
+          {duration === 'default' ? 'default time' : `${duration} minutes`} ·
+          estimated {workout.estimatedMinutes} min · {workout.blocks.length}{' '}
+          plan blocks
         </p>
 
         <button
@@ -113,7 +144,7 @@ export function TodayView({ bundle }: TodayViewProps) {
           aria-expanded={showWorkout}
           onClick={() => setShowWorkout(!showWorkout)}
         >
-          {showWorkout ? 'Hide workout preview' : 'Review workout preview'}
+          {showWorkout ? 'Hide generated workout' : 'Review generated workout'}
           <Icon name={showWorkout ? 'check' : 'arrow'} size={20} />
         </button>
       </section>
@@ -121,29 +152,38 @@ export function TodayView({ bundle }: TodayViewProps) {
       {showWorkout && (
         <section
           className="exercise-preview"
-          aria-label="Synthetic workout exercises"
+          aria-label="Generated workout plan"
         >
           <div className="section-heading section-heading--compact">
             <div>
-              <p className="eyebrow">Preview only</p>
-              <h2>Session outline</h2>
+              <p className="eyebrow">Pre-workout plan</p>
+              <h2>Generated session</h2>
             </div>
-            <span className="quiet-chip">4 exercises</span>
+            <span className="quiet-chip">{workout.blocks.length} rows</span>
           </div>
           <div className="exercise-list">
-            {syntheticWorkout.exercises.map((exercise, index) => (
-              <article className="exercise-row" key={exercise.name}>
+            {workout.blocks.map((block, index) => (
+              <article className="exercise-row" key={block.blockId}>
                 <span className="exercise-index">
                   {String(index + 1).padStart(2, '0')}
                 </span>
                 <div>
-                  <strong>{exercise.name}</strong>
-                  <p>{exercise.detail}</p>
+                  <strong>{block.canonicalRow}</strong>
+                  <p>{blockDetail(block)}</p>
+                  <div className="block-flags">
+                    {blockMoves(block).some(
+                      (move) => move.warmupSets.length > 0,
+                    ) && <span>Warm-up planned</span>}
+                    {blockMoves(block).some((move) => move.dropSet) && (
+                      <span>Final drop set</span>
+                    )}
+                  </div>
                 </div>
-                <span>{exercise.role}</span>
+                <span>{blockRole(block)}</span>
               </article>
             ))}
           </div>
+          <p className="warmup-note">{workout.warmupSummary}</p>
         </section>
       )}
 
@@ -153,8 +193,13 @@ export function TodayView({ bundle }: TodayViewProps) {
         </div>
         <div>
           <p className="overline">Why this workout</p>
-          <h3>Priority work, then focused volume.</h3>
-          <p>{syntheticWorkout.reason}</p>
+          <h3>Progression first. Volume where it is needed.</h3>
+          <p>{workout.explanation}</p>
+          <div className="confidence-row">
+            <span>{workout.confidence} confidence</span>
+            <span>Deterministic engine v{workout.metadata.engineVersion}</span>
+            {profile.isDemo && <span>Synthetic profile</span>}
+          </div>
         </div>
       </section>
 
@@ -187,6 +232,11 @@ export function TodayView({ bundle }: TodayViewProps) {
           </p>
         </div>
       </section>
+
+      <p className="phase-boundary-note">
+        Pre-workout generation is live. In-workout recalibration and logging
+        begin in the next approved phases.
+      </p>
     </>
   );
 }

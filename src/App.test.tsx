@@ -11,7 +11,7 @@ async function openSyntheticDemo() {
   await screen.findByRole('heading', { name: 'Ready, Demo.' });
 }
 
-describe('Phase 2 exercise intelligence foundation', () => {
+describe('Phase 3 local workout generation', () => {
   it('starts with the short private onboarding welcome', async () => {
     render(<App />);
 
@@ -29,12 +29,16 @@ describe('Phase 2 exercise intelligence foundation', () => {
   it('saves a synthetic demo and renders the useful Today dashboard', async () => {
     await openSyntheticDemo();
 
-    expect(screen.getByText('Phase 2 live')).toBeInTheDocument();
-    expect(screen.getByText('WC-P2-0810')).toBeInTheDocument();
-    expect(screen.getByText('Synthetic demo')).toBeInTheDocument();
+    expect(screen.getByText('Phase 3 live')).toBeInTheDocument();
+    expect(screen.getByText('WC-P3-0810')).toBeInTheDocument();
+    expect(screen.getByText('Generated locally')).toBeInTheDocument();
+    const duration = screen.getByRole('combobox', { name: 'Workout length' });
+    expect(duration).toHaveValue('default');
     expect(
-      screen.getByRole('combobox', { name: 'Workout length' }),
-    ).toHaveValue('default');
+      Array.from((duration as HTMLSelectElement).options).map(
+        (option) => option.value,
+      ),
+    ).toEqual(['15', '30', '45', 'default']);
     expect(
       screen.getByRole('navigation', { name: 'Primary navigation' }),
     ).toBeInTheDocument();
@@ -44,15 +48,26 @@ describe('Phase 2 exercise intelligence foundation', () => {
     await openSyntheticDemo();
 
     fireEvent.click(
-      screen.getByRole('button', { name: 'Review workout preview' }),
+      screen.getByRole('button', { name: 'Review generated workout' }),
     );
-    expect(screen.getByText('Dumbbell Bench Press')).toBeInTheDocument();
+    expect(screen.getByText('strength anchor')).toBeInTheDocument();
+    expect(screen.getByText('2-move superset')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Plan' }));
     expect(
       await screen.findByRole('heading', { name: 'Plan', level: 1 }),
     ).toBeInTheDocument();
     expect(screen.getByText('Demo Home Gym')).toBeInTheDocument();
+  });
+
+  it('regenerates immediately from the single duration dropdown', async () => {
+    await openSyntheticDemo();
+    const duration = screen.getByRole('combobox', { name: 'Workout length' });
+    fireEvent.change(duration, { target: { value: '15' } });
+    expect(screen.getByText(/Generated for 15 minutes/)).toBeInTheDocument();
+    expect(screen.getByText(/estimated 14 min/)).toBeInTheDocument();
+    fireEvent.change(duration, { target: { value: '45' } });
+    expect(screen.getByText(/Generated for 45 minutes/)).toBeInTheDocument();
   });
 
   it('ranks a safe alternative and changes only the preview slot', async () => {

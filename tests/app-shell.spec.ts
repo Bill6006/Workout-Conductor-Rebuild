@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('runs the synthetic Phase 2 preview and persists profile edits', async ({
+test('runs the local Phase 3 generator and persists profile edits', async ({
   page,
 }) => {
   await page.goto('./', { waitUntil: 'domcontentloaded' });
@@ -16,14 +16,27 @@ test('runs the synthetic Phase 2 preview and persists profile edits', async ({
   await expect(
     page.getByRole('heading', { name: 'Ready, Demo.' }),
   ).toBeVisible();
-  await expect(page.getByText('Phase 2 live')).toBeVisible();
-  await expect(page.getByText('Synthetic demo', { exact: true })).toBeVisible();
+  await expect(page.getByText('Phase 3 live')).toBeVisible();
+  await expect(
+    page.getByText('Generated locally', { exact: true }),
+  ).toBeVisible();
 
   const duration = page.getByRole('combobox', { name: 'Workout length' });
+  for (const option of ['15', '30', '45', 'default']) {
+    await duration.selectOption(option);
+    await expect(duration).toHaveValue(option);
+    await expect(
+      page.getByText(
+        option === 'default'
+          ? /Generated for default time/
+          : new RegExp(`Generated for ${option} minutes`),
+      ),
+    ).toBeVisible();
+  }
   await duration.selectOption('30');
-  await expect(duration).toHaveValue('30');
-  await page.getByRole('button', { name: 'Review workout preview' }).click();
-  await expect(page.getByText('Dumbbell Bench Press')).toBeVisible();
+  await page.getByRole('button', { name: 'Review generated workout' }).click();
+  await expect(page.getByText('strength anchor')).toBeVisible();
+  await expect(page.getByText('2-move superset')).toBeVisible();
 
   await page.getByRole('button', { name: 'Plan' }).click();
   await expect(
@@ -110,7 +123,7 @@ test('presents onboarding as five focused editable steps', async ({ page }) => {
   ).toBeEnabled();
 });
 
-test('keeps the Phase 2 catalog responsive at supported mobile widths', async ({
+test('keeps the Phase 3 generated workout responsive at supported mobile widths', async ({
   page,
 }) => {
   await page.goto('./', { waitUntil: 'domcontentloaded' });
@@ -125,12 +138,12 @@ test('keeps the Phase 2 catalog responsive at supported mobile widths', async ({
   await page
     .getByRole('button', { name: 'Explore with a synthetic demo profile' })
     .click();
-  await page.getByRole('button', { name: 'Workout', exact: true }).click();
+  await page.getByRole('button', { name: 'Review generated workout' }).click();
 
   for (const width of [360, 375, 412, 430]) {
     await page.setViewportSize({ width, height: 915 });
     await expect(
-      page.getByRole('heading', { name: 'Catalog', level: 1 }),
+      page.getByRole('heading', { name: 'Generated session', level: 2 }),
     ).toBeVisible();
     const overflow = await page.evaluate(
       () =>
@@ -141,11 +154,7 @@ test('keeps the Phase 2 catalog responsive at supported mobile widths', async ({
   }
 
   await page
-    .getByRole('button', { name: 'Use Push-Up in preview slot' })
-    .click();
-  await expect(
-    page.getByText(
-      'Dumbbell Bench Press → Push-Up. Only this preview slot changed.',
-    ),
-  ).toBeVisible();
+    .getByRole('combobox', { name: 'Workout length' })
+    .selectOption('15');
+  await expect(page.getByText(/Generated for 15 minutes/)).toBeVisible();
 });
