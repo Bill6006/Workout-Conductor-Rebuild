@@ -1,38 +1,81 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import App from './App';
 
-describe('Phase 0 app shell', () => {
-  it('shows the current phase and visible build marker', () => {
+async function openSyntheticDemo() {
+  render(<App />);
+  const demoButton = await screen.findByRole('button', {
+    name: 'Explore with a synthetic demo profile',
+  });
+  fireEvent.click(demoButton);
+  await screen.findByRole('heading', { name: 'Ready, Demo.' });
+}
+
+describe('Phase 1 product foundation', () => {
+  it('starts with the short private onboarding welcome', async () => {
     render(<App />);
 
-    expect(screen.getByText('Phase 0 live')).toBeInTheDocument();
-    expect(screen.getByText('Build WC-P0-0810')).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Your training, intelligently arranged.',
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Phase 1 · Private setup')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Set up my coach' }),
+    ).toBeEnabled();
+  });
+
+  it('saves a synthetic demo and renders the useful Today dashboard', async () => {
+    await openSyntheticDemo();
+
+    expect(screen.getByText('Phase 1 live')).toBeInTheDocument();
+    expect(screen.getByText('WC-P1-0810')).toBeInTheDocument();
+    expect(screen.getByText('Synthetic demo')).toBeInTheDocument();
+    expect(
+      screen.getByRole('combobox', { name: 'Workout length' }),
+    ).toHaveValue('default');
     expect(
       screen.getByRole('navigation', { name: 'Primary navigation' }),
     ).toBeInTheDocument();
   });
 
-  it('navigates between all five app areas', () => {
-    render(<App />);
+  it('opens the workout preview and navigates to saved profiles', async () => {
+    await openSyntheticDemo();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
-    expect(
-      screen.getByRole('heading', { name: 'Settings' }),
-    ).toBeInTheDocument();
-    expect(screen.getByText('WC-P0-0810')).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Review workout preview' }),
+    );
+    expect(screen.getByText('Dumbbell Bench Press')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Today' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Plan' }));
     expect(
-      screen.getByRole('heading', { name: 'Ready when you are.' }),
+      await screen.findByRole('heading', { name: 'Plan', level: 1 }),
     ).toBeInTheDocument();
+    expect(screen.getByText('Demo Home Gym')).toBeInTheDocument();
   });
 
-  it('keeps the unavailable workout action safely disabled', () => {
-    render(<App />);
+  it('edits and verifies the local profile from Settings', async () => {
+    await openSyntheticDemo();
 
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    const profileName = await screen.findByRole('textbox', {
+      name: 'Profile name',
+    });
+    fireEvent.change(profileName, { target: { value: 'Jordan' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save local profile' }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          'Profile, settings, and saved locations were written and verified.',
+        ),
+      ).toBeInTheDocument();
+    });
     expect(
-      screen.getByRole('button', { name: /start workout/i }),
-    ).toBeDisabled();
+      screen.getByRole('button', {
+        name: 'Profile, settings, and saved locations were written and verified.',
+      }),
+    ).toBeInTheDocument();
   });
 });

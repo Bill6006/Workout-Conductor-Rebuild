@@ -8,7 +8,9 @@ https://bill6006.github.io/Workout-Conductor-Rebuild/
 
 ## Current scope
 
-Phase 0 establishes the public repository, installable PWA shell, permanent GitHub Pages deployment, CI, responsive mobile navigation, and visible build marker. Product features are added only after the current phase receives explicit user approval.
+Phase 1 adds focused onboarding, editable athlete and training preferences, saved location/equipment profiles, a clearly synthetic Today preview, and a validated local data foundation. Small settings use `localStorage`; durable profile data uses IndexedDB with schema validation and write/read-back verification. Export/import is a deliberately limited foundation for later migration work.
+
+Workout catalog reconciliation and workout generation remain gated to later phases.
 
 ## Local development
 
@@ -17,7 +19,7 @@ npm install
 npm run dev
 ```
 
-Run the Phase 0 validation suite:
+Run the validation suite:
 
 ```bash
 npm run lint
