@@ -6,6 +6,7 @@ import {
   generationInputFromBundle,
 } from '../engine/workoutGenerator/generateWorkout';
 import { createActiveSession } from '../features/activeWorkout/session';
+import { createSavedWorkout } from '../features/savedWorkouts/schema';
 import {
   createBackupFoundation,
   importBackupFoundation,
@@ -16,9 +17,11 @@ import {
   loadActiveSession,
   loadBundle,
   loadExerciseNotes,
+  loadSavedWorkouts,
   saveActiveSessionVerified,
   saveBundleVerified,
   saveExerciseNoteVerified,
+  saveWorkoutVerified,
 } from './database';
 import { loadSettings, saveSettingsVerified } from './settings';
 
@@ -108,5 +111,22 @@ describe('local-first storage foundation', () => {
         updatedAt: '2026-08-10T18:01:00.000Z',
       },
     ]);
+  });
+
+  it('writes and reads back a saved workout without adding synthetic history', async () => {
+    const demo = createDemoBundle();
+    const workout = generateWorkout(
+      generationInputFromBundle(demo, '15', {
+        date: '2026-08-11T18:00:00.000Z',
+      }),
+    );
+    const saved = createSavedWorkout(
+      workout,
+      'generated',
+      null,
+      new Date('2026-08-11T18:01:00.000Z'),
+    );
+    await saveWorkoutVerified(saved);
+    expect(await loadSavedWorkouts()).toEqual([saved]);
   });
 });

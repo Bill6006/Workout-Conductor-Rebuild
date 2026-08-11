@@ -37,6 +37,7 @@ type TodayViewProps = {
     workout: ReturnType<typeof generateWorkout>,
     readiness: ReadinessCheck,
   ) => void;
+  onSaveWorkout: (workout: ReturnType<typeof generateWorkout>) => void;
 };
 
 type PendingRecalibration = {
@@ -79,6 +80,7 @@ export function TodayView({
   activeSession,
   sessionHistory,
   onStartWorkout,
+  onSaveWorkout,
 }: TodayViewProps) {
   const [duration, setDuration] = useState<WorkoutDuration>('default');
   const [showWorkout, setShowWorkout] = useState(false);
@@ -300,9 +302,9 @@ export function TodayView({
 
       <div className="phase-banner">
         <span className="status-pill">
-          <span /> Phase 6 live
+          <span /> Phase 7 live
         </span>
-        <span className="build-label">WC-P6-0810</span>
+        <span className="build-label">WC-P7-0811</span>
       </div>
 
       <section className="today-hero" aria-labelledby="today-workout-title">
@@ -407,6 +409,13 @@ export function TodayView({
         >
           {showWorkout ? 'Hide generated workout' : 'Review generated workout'}
           <Icon name={showWorkout ? 'check' : 'arrow'} size={20} />
+        </button>
+        <button
+          className="save-workout-button"
+          type="button"
+          onClick={() => onSaveWorkout(workout)}
+        >
+          <Icon name="check" size={17} /> Save workout
         </button>
       </section>
 
@@ -650,8 +659,8 @@ export function TodayView({
       </section>
 
       <p className="phase-boundary-note">
-        Readiness and adaptive coaching are live. Progress dashboards and the
-        deeper post-workout summary remain gated to Phase 7.
+        Readiness and adaptive coaching are live. History, personal records, and
+        session summaries are available in Progress.
       </p>
 
       {pending && (

@@ -16,9 +16,13 @@ import {
   type ActiveSession,
   type ExerciseNote,
 } from '../features/activeWorkout/schema';
+import {
+  SavedWorkoutSchema,
+  type SavedWorkout,
+} from '../features/savedWorkouts/schema';
 
 export const DATABASE_NAME = 'workout-conductor';
-const DATABASE_VERSION = 2;
+const DATABASE_VERSION = 3;
 
 export const storeNames = {
   profiles: 'profiles',
@@ -26,6 +30,7 @@ export const storeNames = {
   locations: 'locations',
   activeSessions: 'activeSessions',
   exerciseNotes: 'exerciseNotes',
+  savedWorkouts: 'savedWorkouts',
 } as const;
 
 type StoreName = (typeof storeNames)[keyof typeof storeNames];
@@ -239,6 +244,26 @@ export async function loadExerciseNotes(): Promise<ExerciseNote[]> {
   return getAllRecords<ExerciseNote>(
     storeNames.exerciseNotes,
     ExerciseNoteSchema,
+  );
+}
+
+export async function saveWorkoutVerified(
+  workout: SavedWorkout,
+): Promise<SavedWorkout> {
+  return writeRecordVerified(
+    storeNames.savedWorkouts,
+    workout,
+    SavedWorkoutSchema,
+  );
+}
+
+export async function loadSavedWorkouts(): Promise<SavedWorkout[]> {
+  const workouts = await getAllRecords<SavedWorkout>(
+    storeNames.savedWorkouts,
+    SavedWorkoutSchema,
+  );
+  return workouts.sort((first, second) =>
+    second.savedAt.localeCompare(first.savedAt),
   );
 }
 

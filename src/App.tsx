@@ -15,16 +15,22 @@ import {
   loadActiveSession,
   loadBundle,
   loadSessionHistory,
+  loadSavedWorkouts,
   saveActiveSessionVerified,
   saveBundleVerified,
+  saveWorkoutVerified,
 } from './storage/database';
 import { saveSettingsVerified } from './storage/settings';
 import { CatalogView } from './views/CatalogView';
-import { PlaceholderView } from './views/PlaceholderView';
+import { ProgressView } from './views/ProgressView';
 import { PlanView } from './views/PlanView';
 import { SettingsView } from './views/SettingsView';
 import { TodayView } from './views/TodayView';
 import { ActiveWorkoutView } from './views/ActiveWorkoutView';
+import {
+  createSavedWorkout,
+  type SavedWorkout,
+} from './features/savedWorkouts/schema';
 
 type TabId = 'today' | 'workout' | 'progress' | 'plan' | 'settings';
 
@@ -49,17 +55,24 @@ export default function App() {
     null,
   );
   const [sessionHistory, setSessionHistory] = useState<ActiveSession[]>([]);
+  const [savedWorkouts, setSavedWorkouts] = useState<SavedWorkout[]>([]);
   const activeSaveQueue = useRef<Promise<void>>(Promise.resolve());
   const activeSaveSequence = useRef(0);
 
   useEffect(() => {
     let active = true;
-    void Promise.all([loadBundle(), loadActiveSession(), loadSessionHistory()])
-      .then(([storedBundle, storedSession, storedHistory]) => {
+    void Promise.all([
+      loadBundle(),
+      loadActiveSession(),
+      loadSessionHistory(),
+      loadSavedWorkouts(),
+    ])
+      .then(([storedBundle, storedSession, storedHistory, storedSaved]) => {
         if (!active) return;
         setBundle(storedBundle);
         setActiveSession(storedSession);
         setSessionHistory(storedHistory);
+        setSavedWorkouts(storedSaved);
         setShowOnboarding(!storedBundle.profile?.onboardingComplete);
         setStorageStatus(
           storedSession
@@ -145,6 +158,21 @@ export default function App() {
     setAnnouncement('Workout started and protected by verified local saves.');
   }
 
+  async function saveWorkout(
+    workout: GeneratedWorkout,
+    source: SavedWorkout['source'],
+    sourceSessionId: string | null = null,
+  ) {
+    const saved = await saveWorkoutVerified(
+      createSavedWorkout(workout, source, sourceSessionId),
+    );
+    setSavedWorkouts((current) => [saved, ...current]);
+    setStorageStatus(
+      'Saved workout was written, read back, and verified locally.',
+    );
+    setAnnouncement(`${workout.title} saved for reuse in Plan.`);
+  }
+
   function updateActiveSession(next: ActiveSession, message?: string) {
     const previous = activeSession;
     const sequence = ++activeSaveSequence.current;
@@ -188,7 +216,7 @@ export default function App() {
         </div>
         <span className="loading-pulse" />
         <p>Opening your private training space…</p>
-        <small>WC-P6-0810</small>
+        <small>WC-P7-0811</small>
       </div>
     );
   }
@@ -223,6 +251,7 @@ export default function App() {
             activeSession={activeSession}
             sessionHistory={sessionHistory}
             onStartWorkout={startWorkout}
+            onSaveWorkout={(workout) => saveWorkout(workout, 'generated')}
           />
         )}
         {activeTab === 'workout' &&
@@ -232,12 +261,24 @@ export default function App() {
               bundle={bundle}
               sessionHistory={sessionHistory}
               onSessionChange={updateActiveSession}
+              onSaveWorkout={(workout, sessionId) =>
+                saveWorkout(workout, 'completed', sessionId)
+              }
             />
           ) : (
             <CatalogView />
           ))}
-        {activeTab === 'progress' && <PlaceholderView tab="progress" />}
-        {activeTab === 'plan' && <PlanView bundle={bundle} />}
+        {activeTab === 'progress' && (
+          <ProgressView bundle={bundle} sessionHistory={sessionHistory} />
+        )}
+        {activeTab === 'plan' && (
+          <PlanView
+            bundle={bundle}
+            sessionHistory={sessionHistory}
+            savedWorkouts={savedWorkouts}
+            onStartSaved={startWorkout}
+          />
+        )}
         {activeTab === 'settings' && (
           <SettingsView
             key={`${bundle.profile.updatedAt}-${bundle.locations.length}`}

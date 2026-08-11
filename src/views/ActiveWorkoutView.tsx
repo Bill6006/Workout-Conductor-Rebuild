@@ -15,8 +15,13 @@ import { generationInputFromBundle } from '../engine/workoutGenerator/generateWo
 import { coachRecommendation } from '../engine/coach/progression';
 import { applyConfirmedCoachAction } from '../engine/coach/applyCoachAction';
 import type { CoachAction } from '../engine/coach/schema';
+import {
+  buildSessionSummary,
+  detectSessionPersonalRecords,
+} from '../engine/analytics/analyzeProgress';
 import type {
   ExercisePrescription,
+  GeneratedWorkout,
   WorkoutBlock,
 } from '../engine/workoutGenerator/schema';
 import { calculatePlateMath } from '../features/activeWorkout/plateMath';
@@ -48,6 +53,7 @@ type ActiveWorkoutViewProps = {
   bundle: AppBundle;
   sessionHistory: ActiveSession[];
   onSessionChange: (session: ActiveSession, message?: string) => void;
+  onSaveWorkout: (workout: GeneratedWorkout, sessionId: string) => void;
 };
 
 function formatClock(seconds: number) {
@@ -128,6 +134,7 @@ export function ActiveWorkoutView({
   bundle,
   sessionHistory,
   onSessionChange,
+  onSaveWorkout,
 }: ActiveWorkoutViewProps) {
   const [now, setNow] = useState(() => new Date(session.updatedAt).getTime());
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
@@ -159,6 +166,11 @@ export function ActiveWorkoutView({
     ? session.customExerciseSnapshots[move.exerciseId]
     : undefined;
   const completed = workoutCompletion(session);
+  const livePrs = detectSessionPersonalRecords(
+    session,
+    sessionHistory,
+    bundle.settings.units,
+  );
   const elapsed = elapsedSessionSeconds(session, new Date(now));
   const remainingSeconds = Math.max(
     0,
@@ -526,6 +538,12 @@ export function ActiveWorkoutView({
   }
 
   if (session.status === 'completed') {
+    const summary = buildSessionSummary(
+      session,
+      sessionHistory,
+      bundle.profile!,
+      bundle.settings.units,
+    );
     return (
       <section
         className="completion-surface"
@@ -537,8 +555,8 @@ export function ActiveWorkoutView({
         <p className="eyebrow">Session complete</p>
         <h1 id="completion-title">Strong work. Logged locally.</h1>
         <p>
-          Your completed records now inform the next progression target. The
-          deeper progress dashboard arrives in Phase 7.
+          Your completed records now inform the next progression target and
+          remain private in verified local storage.
         </p>
         <div className="completion-grid">
           <div>
@@ -563,6 +581,101 @@ export function ActiveWorkoutView({
           <span>{completed.skippedBlocks} skipped blocks</span>
           <span>Verified local save</span>
         </div>
+        {summary.personalRecords.length > 0 && (
+          <section
+            className="completion-prs"
+            aria-labelledby="completion-pr-title"
+          >
+            <p className="overline">Personal records</p>
+            <h2 id="completion-pr-title">
+              {summary.personalRecords.length} milestone
+              {summary.personalRecords.length === 1 ? '' : 's'} today
+            </h2>
+            <div className="pr-grid">
+              {summary.personalRecords.map((record) => (
+                <article className="pr-card" key={record.id}>
+                  <span className="pr-badge">PR</span>
+                  <div>
+                    <strong>{record.exerciseName}</strong>
+                    <p>
+                      {record.label} · {record.detail}
+                    </p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+        <section
+          className="session-summary"
+          aria-labelledby="session-summary-title"
+        >
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Evidence-led recap</p>
+              <h2 id="session-summary-title">Session Summary</h2>
+            </div>
+            <span
+              className={`confidence-chip confidence-chip--${summary.confidence}`}
+            >
+              {summary.confidence}
+            </span>
+          </div>
+          <div className="summary-muscles">
+            {summary.musclesTrained.slice(0, 8).map((row) => (
+              <span key={row.muscle}>
+                {row.name} · {row.effectiveSets}
+              </span>
+            ))}
+          </div>
+          <div className="summary-detail-grid">
+            <article>
+              <strong>Recovery note</strong>
+              <p>{summary.recoveryNote}</p>
+            </article>
+            <article>
+              <strong>Substitutions</strong>
+              <p>
+                {summary.substitutions
+                  ? `${summary.substitutions} accepted; original completed records preserved.`
+                  : 'No substitutions accepted.'}
+              </p>
+            </article>
+            <article>
+              <strong>Next targets</strong>
+              <ul>
+                {summary.nextTargets.map((target) => (
+                  <li key={target}>{target}</li>
+                ))}
+              </ul>
+            </article>
+            <article>
+              <strong>Next focus</strong>
+              <p>{summary.nextFocus}</p>
+            </article>
+          </div>
+          <small className="summary-sample">
+            {summary.sampleLabel} · warm-ups excluded from records and working
+            totals
+          </small>
+          {Object.keys(session.notesByExerciseId).length > 0 && (
+            <details className="summary-notes">
+              <summary>Exercise notes</summary>
+              {Object.entries(session.notesByExerciseId).map(([id, note]) => (
+                <p key={id}>
+                  <strong>{exerciseById.get(id)?.name ?? id}:</strong> {note}
+                </p>
+              ))}
+            </details>
+          )}
+          <button
+            className="review-workout-button"
+            type="button"
+            onClick={() => onSaveWorkout(session.workout, session.id)}
+          >
+            <Icon name="check" size={17} /> Save this workout
+          </button>
+        </section>
         <section
           className="session-feedback"
           aria-labelledby="session-feedback-title"
@@ -638,10 +751,20 @@ export function ActiveWorkoutView({
 
       <div className="phase-banner">
         <span className="status-pill">
-          <span /> Phase 6 live
+          <span /> Phase 7 live
         </span>
-        <span className="build-label">WC-P6-0810</span>
+        <span className="build-label">WC-P7-0811</span>
       </div>
+
+      {livePrs.length > 0 && (
+        <div className="live-pr-strip" role="status">
+          <span className="pr-badge">PR</span>
+          <strong>{livePrs.at(-1)!.exerciseName}</strong>
+          <span>
+            {livePrs.at(-1)!.label} · {livePrs.at(-1)!.detail}
+          </span>
+        </div>
+      )}
 
       <section
         className="adaptive-coach adaptive-coach--active"

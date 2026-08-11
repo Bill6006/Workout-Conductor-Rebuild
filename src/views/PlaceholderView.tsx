@@ -49,8 +49,8 @@ export function PlaceholderView({ tab }: PlaceholderViewProps) {
       </section>
       <section className="build-card">
         <p className="eyebrow">Current visible build</p>
-        <strong>WC-P6-0810</strong>
-        <span>Phase 6 · Adaptive coaching and progression</span>
+        <strong>WC-P7-0811</strong>
+        <span>Phase 7 · History, analytics, and planning</span>
       </section>
     </>
   );

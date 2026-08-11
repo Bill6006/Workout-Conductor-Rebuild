@@ -104,7 +104,7 @@ export function CatalogView() {
           <span className="status-pill">
             <span /> Phase 2 validated
           </span>
-          <span className="build-label">WC-P6-0810</span>
+          <span className="build-label">WC-P7-0811</span>
         </div>
         <p className="overline">One structured source of truth</p>
         <h2 id="catalog-hero-title">

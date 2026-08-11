@@ -8,11 +8,11 @@ https://bill6006.github.io/Workout-Conductor-Rebuild/
 
 ## Current scope
 
-Phase 6 adds a deterministic, browser-local Adaptive Coach over the workout generator, recalibration engine, and durable active-session record. It evaluates readiness and recent qualifying sessions, recommends concrete next targets, detects repeated stalls without punishing one bad set, interprets recovery and fatigue, and protects manually corrected records.
+Phase 7 adds completed-workout history, evidence-led Progress, weekly planning, muscle coverage, exercise ranking, personal records, reusable saved workouts, and a complete Session Summary over the deterministic coaching and workout-execution foundation.
 
-The coach presents one prioritized recommendation and at most one main action. Swaps, deloads, volume changes, extra sets, and optional drop sets require athlete confirmation. Warm-ups, drop sets, and incomplete superset rounds are excluded from progression evidence.
+Only completed working records inform normal volume, strength, coverage, and PR evidence. Warm-ups, optional drop sets, incomplete drafts, and unfinished superset rounds remain excluded. Every insight exposes its sample size and confidence, and all data stays browser-local.
 
-See [docs/adaptive-coach.md](docs/adaptive-coach.md) for the coaching contract and [docs/phase-reports/PHASE_6.md](docs/phase-reports/PHASE_6.md) for acceptance evidence.
+See [docs/analytics.md](docs/analytics.md) for the analytics contract and [docs/phase-reports/PHASE_7.md](docs/phase-reports/PHASE_7.md) for acceptance evidence.
 
 ## Local development
 
