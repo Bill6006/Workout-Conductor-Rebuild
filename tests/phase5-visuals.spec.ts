@@ -35,7 +35,7 @@ test('captures the Phase 6 mobile and desktop review evidence', async ({
     .scrollIntoViewIfNeeded();
   await saveViewport(page, 'readiness-coach-412x915.png');
   await page.getByRole('button', { name: 'Start workout' }).click();
-  await expect(page.getByText('Adaptive Coach')).toBeVisible();
+  await expect(page.getByText('Adaptive Coach', { exact: true })).toBeVisible();
   await page.evaluate(() => window.scrollTo(0, 0));
   await saveViewport(page, 'active-workout-412x915.png');
 
