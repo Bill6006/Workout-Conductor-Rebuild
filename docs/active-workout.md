@@ -49,4 +49,4 @@ The active-session schema can carry validated custom-exercise snapshots, includi
 
 The execution screen is tested at 360, 375, 412, and 430 CSS pixels, plus the effective 240-pixel layout viewport produced by 360 pixels at 150% zoom. The current action, timer, and sheets remain usable without horizontal overflow.
 
-Phase 7 extends durable execution with compact live PR feedback, completed-workout history, analytics, and a full Session Summary. Final production demonstration coverage, complete backup/restore, migration safety, and acceptance polish belong to Phase 8.
+Phase 7 extends durable execution with compact live PR feedback, completed-workout history, analytics, and a full Session Summary. Phase 8 completes production demonstration coverage, exact backup/restore, legacy migration safety, explicit PWA update deferral during unfinished sessions, and final accessibility acceptance.

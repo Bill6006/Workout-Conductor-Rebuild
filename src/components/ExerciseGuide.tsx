@@ -12,6 +12,7 @@ export function ExerciseGuide({ exercise }: { exercise: Exercise }) {
   const [playing, setPlaying] = useState(true);
   const media = mediaById.get(exercise.mediaId);
   if (!media) return null;
+  const demonstrationPath = media.demonstrationPath ?? media.posterPath;
 
   return (
     <>
@@ -23,7 +24,7 @@ export function ExerciseGuide({ exercise }: { exercise: Exercise }) {
       >
         <span className={playing ? 'guide-frame is-playing' : 'guide-frame'}>
           <img
-            src={assetPath(media.posterPath)}
+            src={assetPath(playing ? demonstrationPath : media.posterPath)}
             alt=""
             width="92"
             height="70"
@@ -56,7 +57,9 @@ export function ExerciseGuide({ exercise }: { exercise: Exercise }) {
             </div>
             <div className={playing ? 'guide-stage is-playing' : 'guide-stage'}>
               <img
-                src={assetPath(media.posterPath)}
+                src={assetPath(
+                  playing ? demonstrationPath : media.reducedMotionPosterPath,
+                )}
                 alt={`${exercise.name} movement guide`}
               />
               <i aria-hidden="true" />
@@ -92,8 +95,8 @@ export function ExerciseGuide({ exercise }: { exercise: Exercise }) {
               </ul>
             </details>
             <p className="guide-license">
-              Project-owned development guide. Production demonstration media is
-              completed during final media acceptance.
+              Project-owned movement diagram. Packaged with the offline app and
+              cleared for redistribution.
             </p>
           </section>
         </div>

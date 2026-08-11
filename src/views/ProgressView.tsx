@@ -268,8 +268,8 @@ export function ProgressView({
 
       <section className="build-card">
         <p className="eyebrow">Current visible build</p>
-        <strong>WC-P7-0811</strong>
-        <span>Phase 7 · History, analytics, planning, and session summary</span>
+        <strong>WC-P8-0811</strong>
+        <span>Phase 8 · Data safety, offline readiness, and acceptance</span>
       </section>
     </>
   );

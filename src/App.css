@@ -1499,6 +1499,203 @@
   }
 }
 
+/* Phase 8 · exact data safety, diagnostics, and controlled PWA updates */
+
+.pwa-update-banner,
+.offline-ready-banner {
+  position: fixed;
+  z-index: 80;
+  right: max(12px, calc((100vw - 500px) / 2));
+  bottom: 88px;
+  left: max(12px, calc((100vw - 500px) / 2));
+  border: 1px solid rgba(200, 255, 61, 0.32);
+  border-radius: 16px;
+  background: rgba(20, 27, 18, 0.98);
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.46);
+  color: #f4f7f1;
+}
+
+.pwa-update-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+}
+
+.pwa-update-banner div {
+  display: grid;
+  gap: 3px;
+}
+
+.pwa-update-banner span {
+  color: #9ca69e;
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.pwa-update-banner button {
+  flex: 0 0 auto;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--accent);
+  color: #080a08;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.offline-ready-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 10px 16px;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+
+.diagnostic-card small {
+  display: block;
+  margin-top: 5px;
+  color: #778179;
+  font-size: 0.61rem;
+  line-height: 1.4;
+}
+
+.restore-preview {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(200, 255, 61, 0.23);
+  border-radius: 16px;
+  background: linear-gradient(145deg, rgba(200, 255, 61, 0.07), #111514 58%);
+}
+
+.restore-preview h3,
+.restore-preview p,
+.restore-preview ul {
+  margin: 0;
+}
+
+.restore-preview > p:not(.overline),
+.restore-preview li {
+  color: #9aa39c;
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+
+.restore-preview ul {
+  display: grid;
+  gap: 5px;
+  padding-left: 18px;
+}
+
+.diagnostic-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.cleanup-confirmation {
+  display: grid;
+  width: 100%;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid rgba(255, 199, 92, 0.2);
+  border-radius: 13px;
+  background: rgba(255, 199, 92, 0.05);
+}
+
+.cleanup-confirmation p {
+  margin: 0;
+  color: #abb2ac;
+  font-size: 0.67rem;
+  line-height: 1.45;
+}
+
+.cleanup-confirmation button {
+  min-height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 11px;
+  background: #161a19;
+  color: #dbe1dc;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 750;
+}
+
+@media (max-width: 370px) {
+  .pwa-update-banner {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pwa-update-banner button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 240px) {
+  .app-shell {
+    width: 100vw;
+    max-width: 100vw;
+    overflow-x: clip;
+  }
+
+  .page-content {
+    min-width: 0;
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  .active-workout-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 9px;
+  }
+
+  .pause-button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .phase-banner {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .app-announcement {
+    width: calc(100vw - 20px);
+    padding-right: 9px;
+    padding-left: 9px;
+    white-space: normal;
+  }
+
+  .pwa-update-banner,
+  .offline-ready-banner {
+    right: 10px;
+    left: 10px;
+    width: auto;
+    min-width: 0;
+    max-width: calc(100vw - 20px);
+    white-space: normal;
+  }
+
+  .exercise-guide-thumb,
+  .active-exercise-card,
+  .active-coach-card {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
 /* Phase 7 · evidence, history, planning, and session summary */
 .confidence-chip {
   display: inline-flex;
@@ -3774,9 +3971,7 @@
 }
 
 .sticky-save-button {
-  position: sticky;
-  z-index: 5;
-  bottom: calc(82px + env(safe-area-inset-bottom));
+  position: static;
   display: flex;
   min-height: 52px;
   align-items: center;
@@ -3786,7 +3981,7 @@
   border-radius: 15px;
   color: #171b0f;
   background: var(--accent);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
   font-size: 0.76rem;
   font-weight: 850;
   cursor: pointer;

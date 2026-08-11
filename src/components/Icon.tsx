@@ -17,6 +17,7 @@ export type IconName =
   | 'database'
   | 'download'
   | 'upload'
+  | 'undo'
   | 'plus';
 
 export function Icon({ name, size = 22 }: { name: IconName; size?: number }) {
@@ -93,6 +94,12 @@ export function Icon({ name, size = 22 }: { name: IconName; size?: number }) {
     ),
     download: <path d="M12 3v12m0 0 5-5m-5 5-5-5M5 21h14" />,
     upload: <path d="M12 21V9m0 0 5 5m-5-5-5 5M5 3h14" />,
+    undo: (
+      <>
+        <path d="M9 7H4V2" />
+        <path d="M4.5 7.5A8 8 0 1 1 4 16" />
+      </>
+    ),
     plus: <path d="M12 5v14M5 12h14" />,
   };
 

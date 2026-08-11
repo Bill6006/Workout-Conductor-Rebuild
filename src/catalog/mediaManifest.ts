@@ -10,8 +10,8 @@ export const mediaManifest = [
   MediaManifestEntrySchema.parse({
     id,
     posterPath,
-    demonstrationPath: null,
-    status: 'original-placeholder',
+    demonstrationPath: posterPath,
+    status: 'production-ready',
     source: 'Workout Conductor original',
     license: 'Project-owned; redistribution permitted',
     author: 'Workout Conductor project',

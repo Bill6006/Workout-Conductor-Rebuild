@@ -8,11 +8,11 @@ https://bill6006.github.io/Workout-Conductor-Rebuild/
 
 ## Current scope
 
-Phase 7 adds completed-workout history, evidence-led Progress, weekly planning, muscle coverage, exercise ranking, personal records, reusable saved workouts, and a complete Session Summary over the deterministic coaching and workout-execution foundation.
+Phase 8 completes the planned application with exact and reversible local-data recovery, production offline exercise demonstrations, safe PWA updates, accessibility and 200% zoom acceptance, and final release polish over the deterministic coaching, workout-execution, and evidence-led progress foundation.
 
-Only completed working records inform normal volume, strength, coverage, and PR evidence. Warm-ups, optional drop sets, incomplete drafts, and unfinished superset rounds remain excluded. Every insight exposes its sample size and confidence, and all data stays browser-local.
+Complete backups cover every protected IndexedDB store and local setting, preserve unknown fields, and require a no-change preview plus explicit confirmation before restore. Critical saves and restores are read back and verified, failed restores roll back automatically, and all user data remains browser-local.
 
-See [docs/analytics.md](docs/analytics.md) for the analytics contract and [docs/phase-reports/PHASE_7.md](docs/phase-reports/PHASE_7.md) for acceptance evidence.
+See the [Phase 8 cutover report](docs/cutover-report.md), [data-safety contract](docs/data-safety.md), and [PWA/accessibility acceptance](docs/pwa-and-accessibility.md).
 
 ## Local development
 
@@ -38,4 +38,4 @@ See [docs/PRIVACY.md](docs/PRIVACY.md) for repository and application data rules
 
 ## Phase gate
 
-Each phase is committed, deployed, tested, and marked **YELLOW** for Android review. Only the user can approve the next phase with `GREEN - NEXT PHASE`.
+Each phase is committed, deployed, tested, and marked **YELLOW** for Android review. Phase 8 is the final planned phase; `GREEN - NEXT PHASE` approves the final build and does not begin a Phase 9.

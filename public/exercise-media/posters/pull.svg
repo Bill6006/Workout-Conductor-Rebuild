@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" role="img" aria-labelledby="title desc">
-  <title id="title">Original pull movement placeholder</title>
+  <title id="title">Original pull movement guide</title>
   <desc id="desc">Diagram showing a simplified athlete performing a cable row.</desc>
   <defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#171f17"/><stop offset="1" stop-color="#0a0d0b"/></linearGradient></defs>
   <rect width="320" height="200" rx="28" fill="url(#bg)"/>
@@ -9,5 +9,5 @@
   <path d="M146 99 180 108m-1 0 36-18" fill="none" stroke="#b8ff31" stroke-width="10" stroke-linecap="round"/>
   <path d="m213 82 10 8-10 8" fill="none" stroke="#b8ff31" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M90 157h120" stroke="#313a34" stroke-width="8" stroke-linecap="round"/>
-  <text x="20" y="30" fill="#91a095" font-family="system-ui,sans-serif" font-size="12" font-weight="700" letter-spacing="2">ORIGINAL PLACEHOLDER · PULL</text>
+  <text x="20" y="30" fill="#91a095" font-family="system-ui,sans-serif" font-size="12" font-weight="700" letter-spacing="2">MOVEMENT GUIDE · PULL</text>
 </svg>

@@ -20,9 +20,16 @@ import {
   SavedWorkoutSchema,
   type SavedWorkout,
 } from '../features/savedWorkouts/schema';
+import { CustomExerciseSchema, type CustomExercise } from '../catalog/schema';
+import {
+  CoachTargetSchema,
+  CustomMediaBlobSchema,
+  type CoachTarget,
+  type CustomMediaBlob,
+} from './userContent';
 
 export const DATABASE_NAME = 'workout-conductor';
-const DATABASE_VERSION = 3;
+export const DATABASE_VERSION = 4;
 
 export const storeNames = {
   profiles: 'profiles',
@@ -31,12 +38,47 @@ export const storeNames = {
   activeSessions: 'activeSessions',
   exerciseNotes: 'exerciseNotes',
   savedWorkouts: 'savedWorkouts',
+  customExercises: 'customExercises',
+  customMedia: 'customMedia',
+  coachTargets: 'coachTargets',
+  restorePoints: 'restorePoints',
 } as const;
 
-type StoreName = (typeof storeNames)[keyof typeof storeNames];
+export type StoreName = (typeof storeNames)[keyof typeof storeNames];
+
+export const protectedStoreNames = [
+  storeNames.profiles,
+  storeNames.equipmentProfiles,
+  storeNames.locations,
+  storeNames.activeSessions,
+  storeNames.exerciseNotes,
+  storeNames.savedWorkouts,
+  storeNames.customExercises,
+  storeNames.customMedia,
+  storeNames.coachTargets,
+] as const;
+
+export const temporaryStoreNames = [storeNames.restorePoints] as const;
+
+export type RawStoreRecord = {
+  key: string | number;
+  value: unknown;
+};
+
+export type RawStoreSnapshot = Record<string, RawStoreRecord[]>;
+
+export type StorageDiagnostic = {
+  schemaVersion: number;
+  protectedRecords: number;
+  recordsByStore: Record<string, number>;
+  usageBytes: number | null;
+  quotaBytes: number | null;
+  lastVerifiedAt: string | null;
+};
 
 let databasePromise: Promise<IDBDatabase> | null = null;
 const pendingWrites = new Set<Promise<unknown>>();
+let lastVerifiedAt: string | null = null;
 
 function requestResult<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -129,7 +171,98 @@ async function performVerifiedWrite<T extends { id: string }>(
     );
   }
 
+  lastVerifiedAt = new Date().toISOString();
+
   return verified;
+}
+
+export async function waitForPendingWrites(): Promise<void> {
+  while (pendingWrites.size > 0) {
+    await Promise.allSettled(Array.from(pendingWrites));
+  }
+}
+
+export async function readRawStores(
+  names: readonly StoreName[] = protectedStoreNames,
+): Promise<RawStoreSnapshot> {
+  await waitForPendingWrites();
+  const database = await openDatabase();
+  const snapshot: RawStoreSnapshot = {};
+  for (const name of names) {
+    const transaction = database.transaction(name, 'readonly');
+    const completed = transactionComplete(transaction);
+    const store = transaction.objectStore(name);
+    const [keys, values] = await Promise.all([
+      requestResult(store.getAllKeys()),
+      requestResult(store.getAll()),
+    ]);
+    await completed;
+    snapshot[name] = values.map((value, index) => {
+      const key = keys[index];
+      if (typeof key !== 'string' && typeof key !== 'number') {
+        throw new Error(`Unsupported local key type in ${name}.`);
+      }
+      return { key, value };
+    });
+  }
+  return snapshot;
+}
+
+export async function replaceRawStores(
+  snapshot: RawStoreSnapshot,
+  names: readonly StoreName[] = protectedStoreNames,
+): Promise<void> {
+  await waitForPendingWrites();
+  const database = await openDatabase();
+  const transaction = database.transaction([...names], 'readwrite');
+  for (const name of names) {
+    const store = transaction.objectStore(name);
+    store.clear();
+    for (const record of snapshot[name] ?? []) {
+      if (store.keyPath === null) store.put(record.value, record.key);
+      else store.put(record.value);
+    }
+  }
+  await transactionComplete(transaction);
+}
+
+export async function clearTemporaryData(): Promise<number> {
+  const database = await openDatabase();
+  let removed = 0;
+  for (const name of temporaryStoreNames) {
+    const transaction = database.transaction(name, 'readwrite');
+    const completed = transactionComplete(transaction);
+    const store = transaction.objectStore(name);
+    removed += await requestResult(store.count());
+    store.clear();
+    await completed;
+  }
+  return removed;
+}
+
+export async function getStorageDiagnostic(): Promise<StorageDiagnostic> {
+  const database = await openDatabase();
+  const recordsByStore: Record<string, number> = {};
+  for (const name of protectedStoreNames) {
+    const transaction = database.transaction(name, 'readonly');
+    const completed = transactionComplete(transaction);
+    recordsByStore[name] = await requestResult(
+      transaction.objectStore(name).count(),
+    );
+    await completed;
+  }
+  const estimate = await navigator.storage?.estimate?.();
+  return {
+    schemaVersion: DATABASE_VERSION,
+    protectedRecords: Object.values(recordsByStore).reduce(
+      (total, count) => total + count,
+      0,
+    ),
+    recordsByStore,
+    usageBytes: estimate?.usage ?? null,
+    quotaBytes: estimate?.quota ?? null,
+    lastVerifiedAt,
+  };
 }
 
 export function writeRecordVerified<T extends { id: string }>(
@@ -264,6 +397,36 @@ export async function loadSavedWorkouts(): Promise<SavedWorkout[]> {
   );
   return workouts.sort((first, second) =>
     second.savedAt.localeCompare(first.savedAt),
+  );
+}
+
+export async function saveCustomExerciseVerified(
+  exercise: CustomExercise,
+): Promise<CustomExercise> {
+  return writeRecordVerified(
+    storeNames.customExercises,
+    exercise,
+    CustomExerciseSchema,
+  );
+}
+
+export async function saveCustomMediaVerified(
+  media: CustomMediaBlob,
+): Promise<CustomMediaBlob> {
+  return writeRecordVerified(
+    storeNames.customMedia,
+    media,
+    CustomMediaBlobSchema,
+  );
+}
+
+export async function saveCoachTargetVerified(
+  target: CoachTarget,
+): Promise<CoachTarget> {
+  return writeRecordVerified(
+    storeNames.coachTargets,
+    target,
+    CoachTargetSchema,
   );
 }
 

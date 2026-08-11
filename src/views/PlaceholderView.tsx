@@ -19,7 +19,7 @@ const content: Record<
     title: 'Progress',
     heading: 'Your clean slate starts here.',
     copy: 'No synthetic history is mixed with real results. Trends and records will appear only after the analytics phase is approved.',
-    phase: 'History and analytics · Phase 7',
+    phase: 'Final acceptance · Phase 8',
   },
 };
 
@@ -49,8 +49,8 @@ export function PlaceholderView({ tab }: PlaceholderViewProps) {
       </section>
       <section className="build-card">
         <p className="eyebrow">Current visible build</p>
-        <strong>WC-P7-0811</strong>
-        <span>Phase 7 · History, analytics, and planning</span>
+        <strong>WC-P8-0811</strong>
+        <span>Phase 8 · Data safety, offline readiness, and acceptance</span>
       </section>
     </>
   );

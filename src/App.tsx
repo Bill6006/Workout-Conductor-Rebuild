@@ -10,7 +10,11 @@ import type {
   ActiveSession,
   ReadinessCheck,
 } from './features/activeWorkout/schema';
-import { importBackupFoundation } from './storage/backup';
+import {
+  restoreBackup,
+  rollbackLastRestore,
+  type BackupPreview,
+} from './storage/backup';
 import {
   loadActiveSession,
   loadBundle,
@@ -31,6 +35,11 @@ import {
   createSavedWorkout,
   type SavedWorkout,
 } from './features/savedWorkouts/schema';
+import {
+  PWA_APPLY_UPDATE_EVENT,
+  PWA_OFFLINE_READY_EVENT,
+  PWA_UPDATE_READY_EVENT,
+} from './pwaEvents';
 
 type TabId = 'today' | 'workout' | 'progress' | 'plan' | 'settings';
 
@@ -41,6 +50,17 @@ const navItems: { id: TabId; label: string; icon: IconName }[] = [
   { id: 'plan', label: 'Plan', icon: 'plan' },
   { id: 'settings', label: 'Settings', icon: 'settings' },
 ];
+
+async function loadLocalState() {
+  const [storedBundle, storedSession, storedHistory, storedSaved] =
+    await Promise.all([
+      loadBundle(),
+      loadActiveSession(),
+      loadSessionHistory(),
+      loadSavedWorkouts(),
+    ]);
+  return { storedBundle, storedSession, storedHistory, storedSaved };
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabId>('today');
@@ -56,18 +76,16 @@ export default function App() {
   );
   const [sessionHistory, setSessionHistory] = useState<ActiveSession[]>([]);
   const [savedWorkouts, setSavedWorkouts] = useState<SavedWorkout[]>([]);
+  const [storageEpoch, setStorageEpoch] = useState(0);
+  const [updateReady, setUpdateReady] = useState(false);
+  const [offlineReady, setOfflineReady] = useState(false);
   const activeSaveQueue = useRef<Promise<void>>(Promise.resolve());
   const activeSaveSequence = useRef(0);
 
   useEffect(() => {
     let active = true;
-    void Promise.all([
-      loadBundle(),
-      loadActiveSession(),
-      loadSessionHistory(),
-      loadSavedWorkouts(),
-    ])
-      .then(([storedBundle, storedSession, storedHistory, storedSaved]) => {
+    void loadLocalState()
+      .then(({ storedBundle, storedSession, storedHistory, storedSaved }) => {
         if (!active) return;
         setBundle(storedBundle);
         setActiveSession(storedSession);
@@ -98,6 +116,17 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    const showUpdate = () => setUpdateReady(true);
+    const showOffline = () => setOfflineReady(true);
+    window.addEventListener(PWA_UPDATE_READY_EVENT, showUpdate);
+    window.addEventListener(PWA_OFFLINE_READY_EVENT, showOffline);
+    return () => {
+      window.removeEventListener(PWA_UPDATE_READY_EVENT, showUpdate);
+      window.removeEventListener(PWA_OFFLINE_READY_EVENT, showOffline);
+    };
+  }, []);
+
   async function saveCompleteBundle(nextBundle: AppBundle) {
     const settings = saveSettingsVerified(nextBundle.settings);
     const verified = await saveBundleVerified({ ...nextBundle, settings });
@@ -121,13 +150,35 @@ export default function App() {
     );
   }
 
-  async function importFoundation(text: string) {
-    const imported = await importBackupFoundation(text);
-    setBundle(imported);
+  async function refreshFromStorage() {
+    const { storedBundle, storedSession, storedHistory, storedSaved } =
+      await loadLocalState();
+    setBundle(storedBundle);
+    setActiveSession(storedSession);
+    setSessionHistory(storedHistory);
+    setSavedWorkouts(storedSaved);
+    setStorageEpoch((current) => current + 1);
+  }
+
+  async function importCompleteBackup(text: string): Promise<BackupPreview> {
+    const preview = await restoreBackup(text);
+    await refreshFromStorage();
     setStorageStatus(
-      'Latest import was schema-validated and read-back verified.',
+      'Restore was previewed, confirmed, schema-validated, read back, and verified. Rollback is available.',
     );
-    setAnnouncement('Validated profile foundation imported locally.');
+    setAnnouncement(
+      preview.kind === 'complete'
+        ? 'Exact local restore verified.'
+        : 'Legacy profile migration verified; protected history was preserved.',
+    );
+    return preview;
+  }
+
+  async function rollbackImport() {
+    await rollbackLastRestore();
+    await refreshFromStorage();
+    setStorageStatus('Pre-import rollback was restored and verified locally.');
+    setAnnouncement('Rollback complete. Pre-import local data restored.');
   }
 
   async function startWorkout(
@@ -216,7 +267,7 @@ export default function App() {
         </div>
         <span className="loading-pulse" />
         <p>Opening your private training space…</p>
-        <small>WC-P7-0811</small>
+        <small>WC-P8-0811</small>
       </div>
     );
   }
@@ -235,6 +286,37 @@ export default function App() {
       <a className="skip-link" href="#main-content">
         Skip to content
       </a>
+      {updateReady && (
+        <section className="pwa-update-banner" role="status">
+          <div>
+            <strong>Safe update ready</strong>
+            <span>
+              {activeSession && activeSession.status !== 'completed'
+                ? 'Finish this verified workout before installing the new app shell.'
+                : 'Local data stays in place. Install when you are ready.'}
+            </span>
+          </div>
+          {(!activeSession || activeSession.status === 'completed') && (
+            <button
+              type="button"
+              onClick={() =>
+                window.dispatchEvent(new Event(PWA_APPLY_UPDATE_EVENT))
+              }
+            >
+              Update app
+            </button>
+          )}
+        </section>
+      )}
+      {offlineReady && !updateReady && (
+        <button
+          className="offline-ready-banner"
+          type="button"
+          onClick={() => setOfflineReady(false)}
+        >
+          <Icon name="check" size={16} /> Offline app shell ready
+        </button>
+      )}
       {announcement && (
         <button
           className="app-announcement"
@@ -281,11 +363,12 @@ export default function App() {
         )}
         {activeTab === 'settings' && (
           <SettingsView
-            key={`${bundle.profile.updatedAt}-${bundle.locations.length}`}
+            key={`${bundle.profile.updatedAt}-${bundle.locations.length}-${storageEpoch}`}
             bundle={bundle}
             storageStatus={storageStatus}
             onSave={saveCompleteBundle}
-            onImport={importFoundation}
+            onImport={importCompleteBackup}
+            onRollback={rollbackImport}
             onRestartOnboarding={() => setShowOnboarding(true)}
           />
         )}

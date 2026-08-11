@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['icon.svg', 'maskable-icon.svg'],
       manifest: {
         name: 'Workout Conductor',
@@ -37,6 +37,7 @@ export default defineConfig({
       workbox: {
         navigateFallback: 'index.html',
         globPatterns: ['**/*.{js,css,html,svg}'],
+        cleanupOutdatedCaches: true,
       },
       devOptions: {
         enabled: true,

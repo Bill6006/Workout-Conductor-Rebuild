@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../components/Icon';
 import {
   equipmentOptions,
@@ -15,13 +15,25 @@ import {
   type AppSettings,
   type Profile,
 } from '../domain/models';
-import { createBackupFoundation, downloadBackup } from '../storage/backup';
+import {
+  createCompleteBackup,
+  downloadBackup,
+  hasRollbackPoint,
+  previewBackup,
+  type BackupPreview,
+} from '../storage/backup';
+import {
+  clearTemporaryData,
+  getStorageDiagnostic,
+  type StorageDiagnostic,
+} from '../storage/database';
 
 type SettingsViewProps = {
   bundle: AppBundle;
   storageStatus: string;
   onSave: (bundle: AppBundle) => Promise<void>;
-  onImport: (text: string) => Promise<void>;
+  onImport: (text: string) => Promise<BackupPreview>;
+  onRollback: () => Promise<void>;
   onRestartOnboarding: () => void;
 };
 
@@ -34,6 +46,7 @@ export function SettingsView({
   storageStatus,
   onSave,
   onImport,
+  onRollback,
   onRestartOnboarding,
 }: SettingsViewProps) {
   const [draft, setDraft] = useState(() => cloneBundle(bundle));
@@ -50,9 +63,36 @@ export function SettingsView({
     'idle' | 'saving' | 'saved' | 'error'
   >('idle');
   const [message, setMessage] = useState('');
+  const [diagnostic, setDiagnostic] = useState<StorageDiagnostic | null>(null);
+  const [rollbackAvailable, setRollbackAvailable] = useState(false);
+  const [pendingImport, setPendingImport] = useState<{
+    text: string;
+    filename: string;
+    preview: BackupPreview;
+  } | null>(null);
+  const [confirmCleanup, setConfirmCleanup] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
+  const mountedRef = useRef(true);
 
   const profile = draft.profile!;
+
+  async function refreshDiagnostic() {
+    const [nextDiagnostic, canRollback] = await Promise.all([
+      getStorageDiagnostic(),
+      hasRollbackPoint(),
+    ]);
+    if (!mountedRef.current) return;
+    setDiagnostic(nextDiagnostic);
+    setRollbackAvailable(canRollback);
+  }
+
+  useEffect(() => {
+    mountedRef.current = true;
+    void refreshDiagnostic().catch(() => undefined);
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   function updateProfile(changes: Partial<Profile>) {
     setSaveState('idle');
@@ -181,12 +221,12 @@ export function SettingsView({
   }
 
   async function exportBackup() {
-    setMessage('Preparing local export…');
+    setMessage('Collecting and verifying every protected local record…');
     try {
-      const backup = await createBackupFoundation();
+      const backup = await createCompleteBackup();
       downloadBackup(backup);
       setMessage(
-        'Backup foundation exported from this browser. Keep it private.',
+        'Complete backup exported: history, notes, equipment, saved workouts, custom content, media, and Coach targets. Keep it private.',
       );
     } catch (error) {
       setMessage(
@@ -197,11 +237,14 @@ export function SettingsView({
 
   async function importFile(file: File | undefined) {
     if (!file) return;
-    setMessage('Validating and verifying import…');
+    setMessage('Reading a private local preview. Nothing has changed yet…');
     try {
-      await onImport(await file.text());
-      setMessage('Validated profile foundation imported and verified locally.');
-      setSaveState('saved');
+      const text = await file.text();
+      const preview = previewBackup(text);
+      setPendingImport({ text, filename: file.name, preview });
+      setMessage(
+        `${preview.kind === 'complete' ? 'Complete restore' : 'Legacy migration'} preview ready. Confirm to change local data.`,
+      );
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : 'Import was rejected.',
@@ -210,6 +253,54 @@ export function SettingsView({
     } finally {
       if (importInputRef.current) importInputRef.current.value = '';
     }
+  }
+
+  async function confirmImport() {
+    if (!pendingImport) return;
+    setMessage('Creating rollback point, restoring, and verifying read-back…');
+    try {
+      const result = await onImport(pendingImport.text);
+      setPendingImport(null);
+      setRollbackAvailable(true);
+      setSaveState('saved');
+      await refreshDiagnostic();
+      setMessage(
+        result.kind === 'complete'
+          ? 'Exact restore verified. A rollback point is available until temporary data is cleaned.'
+          : 'Legacy migration verified. Protected history stayed in place and rollback is available.',
+      );
+    } catch (error) {
+      setSaveState('error');
+      setMessage(
+        error instanceof Error ? error.message : 'Restore was rejected.',
+      );
+    }
+  }
+
+  async function rollbackImport() {
+    setMessage('Restoring the verified pre-import rollback point…');
+    try {
+      await onRollback();
+      setRollbackAvailable(false);
+      setSaveState('saved');
+      await refreshDiagnostic();
+      setMessage(
+        'Rollback verified. The pre-import local data is active again.',
+      );
+    } catch (error) {
+      setSaveState('error');
+      setMessage(error instanceof Error ? error.message : 'Rollback failed.');
+    }
+  }
+
+  async function cleanupTemporary() {
+    const removed = await clearTemporaryData();
+    setConfirmCleanup(false);
+    setRollbackAvailable(false);
+    await refreshDiagnostic();
+    setMessage(
+      `${removed} temporary restore ${removed === 1 ? 'record' : 'records'} removed. Protected workout data was untouched.`,
+    );
   }
 
   return (
@@ -229,7 +320,7 @@ export function SettingsView({
           <span className="status-pill">
             <span /> Profile active
           </span>
-          <span className="build-label">WC-P7-0811</span>
+          <span className="build-label">WC-P8-0811</span>
         </div>
         <h2>{profile.displayName}</h2>
         <p>
@@ -696,8 +787,20 @@ export function SettingsView({
                 <Icon name="check" size={18} />
               </span>
               <div>
-                <strong>Storage ready</strong>
+                <strong>
+                  {diagnostic
+                    ? `Schema v${diagnostic.schemaVersion} · ${diagnostic.protectedRecords} protected records`
+                    : 'Checking protected storage…'}
+                </strong>
                 <p>{storageStatus}</p>
+                {diagnostic && (
+                  <small>
+                    {diagnostic.usageBytes === null
+                      ? 'Browser quota estimate unavailable'
+                      : `${Math.max(1, Math.round(diagnostic.usageBytes / 1024))} KB in local use`}
+                    {' · '}critical saves use schema validation and read-back
+                  </small>
+                )}
               </div>
             </div>
             <div className="data-action-grid">
@@ -706,14 +809,14 @@ export function SettingsView({
                 type="button"
                 onClick={() => void exportBackup()}
               >
-                <Icon name="download" size={18} /> Export JSON
+                <Icon name="download" size={18} /> Export complete backup
               </button>
               <button
                 className="outline-button"
                 type="button"
                 onClick={() => importInputRef.current?.click()}
               >
-                <Icon name="upload" size={18} /> Import JSON
+                <Icon name="upload" size={18} /> Preview restore/import
               </button>
               <input
                 ref={importInputRef}
@@ -724,10 +827,88 @@ export function SettingsView({
                 onChange={(event) => void importFile(event.target.files?.[0])}
               />
             </div>
+            {pendingImport && (
+              <section
+                className="restore-preview"
+                role="dialog"
+                aria-modal="false"
+                aria-labelledby="restore-preview-title"
+              >
+                <p className="overline">No changes made</p>
+                <h3 id="restore-preview-title">
+                  {pendingImport.preview.kind === 'complete'
+                    ? 'Complete restore preview'
+                    : 'Legacy migration preview'}
+                </h3>
+                <p>
+                  {pendingImport.filename} · schema v
+                  {pendingImport.preview.schemaVersion} ·{' '}
+                  {pendingImport.preview.protectedRecords} imported records
+                </p>
+                <ul>
+                  {pendingImport.preview.warnings.map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
+                </ul>
+                <div className="confirmation-actions">
+                  <button type="button" onClick={() => void confirmImport()}>
+                    {pendingImport.preview.kind === 'complete'
+                      ? 'Confirm exact restore'
+                      : 'Confirm legacy migration'}
+                  </button>
+                  <button type="button" onClick={() => setPendingImport(null)}>
+                    Cancel
+                  </button>
+                </div>
+              </section>
+            )}
+            {rollbackAvailable && (
+              <button
+                className="outline-button"
+                type="button"
+                onClick={() => void rollbackImport()}
+              >
+                <Icon name="undo" size={18} /> Roll back last restore
+              </button>
+            )}
+            <div className="diagnostic-actions">
+              <button
+                className="small-text-button"
+                type="button"
+                onClick={() => void refreshDiagnostic()}
+              >
+                Refresh diagnostic
+              </button>
+              {!confirmCleanup ? (
+                <button
+                  className="small-text-button"
+                  type="button"
+                  onClick={() => setConfirmCleanup(true)}
+                >
+                  Clean temporary restore data
+                </button>
+              ) : (
+                <div className="cleanup-confirmation" role="alert">
+                  <p>
+                    Only rollback/temporary records will be removed. Profiles,
+                    workouts, notes, media, and targets stay protected.
+                  </p>
+                  <button type="button" onClick={() => void cleanupTemporary()}>
+                    Confirm safe cleanup
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmCleanup(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
             <p className="foundation-note">
-              Phase 1 validates and verifies profile foundations. Exact restore,
-              rollback, migrations, and unknown-field preservation remain owned
-              by Phase 8.
+              Complete exports preserve protected records and unknown fields.
+              Imports are previewed, confirmed, read-back verified, and
+              reversible. Cleanup cannot delete protected user data.
             </p>
             <button
               className="small-text-button"

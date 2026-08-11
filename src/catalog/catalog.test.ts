@@ -37,11 +37,13 @@ describe('Phase 2 exercise catalog', () => {
   it('cross-validates substitutions and media references', () => {
     expect(validateCatalogIntegrity()).toEqual([]);
     expect(
-      mediaManifest.every((item) => item.status === 'original-placeholder'),
+      mediaManifest.every(
+        (item) => item.status === 'production-ready' && item.demonstrationPath,
+      ),
     ).toBe(true);
-    expect(exerciseCatalog.some((exercise) => exercise.productionEnabled)).toBe(
-      false,
-    );
+    expect(
+      exerciseCatalog.every((exercise) => exercise.productionEnabled),
+    ).toBe(true);
   });
 
   it('finds exercises by names and aliases without an external API', () => {

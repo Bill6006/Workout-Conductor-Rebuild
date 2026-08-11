@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" role="img" aria-labelledby="title desc">
-  <title id="title">Original press movement placeholder</title>
+  <title id="title">Original press movement guide</title>
   <desc id="desc">Diagram showing a simplified athlete pressing dumbbells above a bench.</desc>
   <defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#182016"/><stop offset="1" stop-color="#0b0e0c"/></linearGradient></defs>
   <rect width="320" height="200" rx="28" fill="url(#bg)"/>
@@ -10,5 +10,5 @@
   <path d="M122 108 103 80m79 29 20-29" fill="none" stroke="#b8ff31" stroke-width="10" stroke-linecap="round"/>
   <path d="M91 76h24m75 0h24" stroke="#b8ff31" stroke-width="8" stroke-linecap="round"/>
   <circle cx="91" cy="76" r="8" fill="#b8ff31"/><circle cx="115" cy="76" r="8" fill="#b8ff31"/><circle cx="190" cy="76" r="8" fill="#b8ff31"/><circle cx="214" cy="76" r="8" fill="#b8ff31"/>
-  <text x="20" y="30" fill="#91a095" font-family="system-ui,sans-serif" font-size="12" font-weight="700" letter-spacing="2">ORIGINAL PLACEHOLDER · PRESS</text>
+  <text x="20" y="30" fill="#91a095" font-family="system-ui,sans-serif" font-size="12" font-weight="700" letter-spacing="2">MOVEMENT GUIDE · PRESS</text>
 </svg>

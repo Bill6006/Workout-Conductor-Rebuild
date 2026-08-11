@@ -167,8 +167,8 @@ function defineExercise(seed: ExerciseSeed): Exercise {
       barWeightCompatible: false,
       eachHand: false,
     },
-    productionEnabled: false,
     ...seed,
+    productionEnabled: true,
   });
 }
 

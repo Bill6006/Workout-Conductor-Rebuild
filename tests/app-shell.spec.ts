@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('runs Phase 7 analytics on the adaptive coaching foundation and persists profile edits', async ({
+test('runs the Phase 8 accepted app on the adaptive coaching foundation and persists profile edits', async ({
   page,
 }) => {
   await page.goto('./', { waitUntil: 'domcontentloaded' });
@@ -16,7 +16,7 @@ test('runs Phase 7 analytics on the adaptive coaching foundation and persists pr
   await expect(
     page.getByRole('heading', { name: 'Ready, Demo.' }),
   ).toBeVisible();
-  await expect(page.getByText('Phase 7 live')).toBeVisible();
+  await expect(page.getByText('Phase 8 live')).toBeVisible();
   await expect(page.getByText('Adaptive Coach', { exact: true })).toBeVisible();
   await page.getByRole('combobox', { name: 'Energy' }).selectOption('2');
   await page.getByRole('button', { name: 'Apply readiness' }).click();
@@ -151,7 +151,7 @@ test('logs, edits, replaces, pauses, and resumes one durable active workout', as
     .click();
   await page.getByRole('button', { name: 'Start workout' }).click();
   await expect(page.getByText('Active workout')).toBeVisible();
-  await expect(page.getByText('WC-P7-0811')).toBeVisible();
+  await expect(page.getByText('WC-P8-0811')).toBeVisible();
   await expect(page.getByText('Adaptive Coach', { exact: true })).toBeVisible();
 
   await page.getByRole('button', { name: /Open demonstration for/ }).click();
@@ -207,7 +207,7 @@ test('logs, edits, replaces, pauses, and resumes one durable active workout', as
   await expect(page.getByText('42.5 lb × 8 · 2 RIR')).toBeVisible();
 });
 
-test('keeps Phase 7 analytics, coaching, and logging responsive at supported mobile widths and 150 percent zoom', async ({
+test('keeps Phase 8 data controls, analytics, coaching, and logging responsive through 200 percent mobile zoom', async ({
   page,
 }) => {
   await page.goto('./', { waitUntil: 'domcontentloaded' });
@@ -235,15 +235,34 @@ test('keeps Phase 7 analytics, coaching, and logging responsive at supported mob
     expect(overflow).toBeLessThanOrEqual(1);
   }
 
-  // A 360 CSS-pixel phone at 150% browser zoom exposes an effective 240px
-  // layout viewport. Exercise that layout directly instead of CSS `zoom`,
-  // which scales the document beyond the viewport by definition.
-  await page.setViewportSize({ width: 240, height: 610 });
-  await expect(page.getByRole('button', { name: 'Log set' })).toBeVisible();
-  const zoomOverflow = await page.evaluate(
-    () =>
-      document.documentElement.scrollWidth -
-      document.documentElement.clientWidth,
-  );
-  expect(zoomOverflow).toBeLessThanOrEqual(1);
+  // A 360 CSS-pixel phone exposes effective 240px and 180px layout viewports
+  // at 150% and 200% browser zoom. Exercise those layouts directly instead of
+  // CSS `zoom`, which scales the document beyond the viewport by definition.
+  for (const width of [240, 180]) {
+    await page.setViewportSize({ width, height: 610 });
+    await expect(page.getByRole('button', { name: 'Log set' })).toBeVisible();
+    const zoomOverflow = await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth -
+        document.documentElement.clientWidth,
+    );
+    const overflowElements = await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>('body *')]
+        .filter(
+          (element) =>
+            element.getBoundingClientRect().right >
+            document.documentElement.clientWidth + 1,
+        )
+        .slice(0, 8)
+        .map((element) => ({
+          className: element.className,
+          tag: element.tagName,
+          width: Math.round(element.getBoundingClientRect().width),
+          right: Math.round(element.getBoundingClientRect().right),
+        })),
+    );
+    expect(zoomOverflow, JSON.stringify(overflowElements)).toBeLessThanOrEqual(
+      1,
+    );
+  }
 });

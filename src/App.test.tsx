@@ -7,6 +7,7 @@ import {
 } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import App from './App';
+import { PWA_UPDATE_READY_EVENT } from './pwaEvents';
 
 async function openSyntheticDemo() {
   render(<App />);
@@ -26,7 +27,7 @@ async function startActiveWorkout() {
   });
 }
 
-describe('Phase 6 adaptive coaching and active workout', () => {
+describe('Phase 8 final acceptance', () => {
   it('starts with the short private onboarding welcome', async () => {
     render(<App />);
 
@@ -44,8 +45,8 @@ describe('Phase 6 adaptive coaching and active workout', () => {
   it('saves a synthetic demo and renders the useful Today dashboard', async () => {
     await openSyntheticDemo();
 
-    expect(screen.getByText('Phase 7 live')).toBeInTheDocument();
-    expect(screen.getByText('WC-P7-0811')).toBeInTheDocument();
+    expect(screen.getByText('Phase 8 live')).toBeInTheDocument();
+    expect(screen.getByText('WC-P8-0811')).toBeInTheDocument();
     expect(screen.getByText('Adaptive Coach')).toBeInTheDocument();
     expect(screen.getByText('Generated locally')).toBeInTheDocument();
     const duration = screen.getByRole('combobox', { name: 'Workout length' });
@@ -180,7 +181,7 @@ describe('Phase 6 adaptive coaching and active workout', () => {
   it('starts a premium active workout and logs a one-tap prefilled set', async () => {
     await startActiveWorkout();
     expect(screen.getByText('Active workout')).toBeInTheDocument();
-    expect(screen.getByText('WC-P7-0811')).toBeInTheDocument();
+    expect(screen.getByText('WC-P8-0811')).toBeInTheDocument();
     expect(screen.getByRole('spinbutton', { name: 'Weight' })).toHaveValue(40);
     expect(screen.getByRole('spinbutton', { name: 'Reps' })).toHaveValue(8);
     expect(screen.getByRole('spinbutton', { name: 'RIR' })).toHaveValue(2);
@@ -194,6 +195,21 @@ describe('Phase 6 adaptive coaching and active workout', () => {
     expect(
       screen.getAllByText(/Set saved and verified locally/).length,
     ).toBeGreaterThan(0);
+  });
+
+  it('defers a waiting app-shell update while a verified workout is active', async () => {
+    await startActiveWorkout();
+    fireEvent(window, new Event(PWA_UPDATE_READY_EVENT));
+
+    expect(screen.getByText('Safe update ready')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Finish this verified workout before installing the new app shell.',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Update app' }),
+    ).not.toBeInTheDocument();
   });
 
   it('corrects a completed set inline without adding a record or timer', async () => {
