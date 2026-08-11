@@ -99,7 +99,15 @@ async function performVerifiedWrite<T extends { id: string }>(
   const validated = schema.parse(value);
   const database = await openDatabase();
   const writeTransaction = database.transaction(storeName, 'readwrite');
-  writeTransaction.objectStore(storeName).put(validated);
+  const objectStore = writeTransaction.objectStore(storeName);
+  if (objectStore.keyPath === null) {
+    // An earlier Workout Conductor build on the same Pages origin created
+    // out-of-line-key stores. Supplying the stable record ID preserves those
+    // records without deleting or destructively rebuilding the database.
+    objectStore.put(validated, validated.id);
+  } else {
+    objectStore.put(validated);
+  }
   await transactionComplete(writeTransaction);
 
   const verifyTransaction = database.transaction(storeName, 'readonly');

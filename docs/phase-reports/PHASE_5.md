@@ -47,6 +47,11 @@ Phase 4 is approved GREEN. Phase 5 delivers the new mobile workout execution sur
 - Visual QA: all six Phase 5 screenshots inspected; the detected Alternatives thumbnail selector defect was corrected and evidence regenerated
 - Phase 5 JavaScript bundle: approximately 434 kB / 123 kB gzip
 
+## Post-review fixes
+
+- Android setup exposed a legacy IndexedDB store created with out-of-line keys on the shared Pages origin. Verified writes now detect that store shape and provide the stable record ID explicitly, preserving existing data without a destructive migration.
+- A dedicated regression test creates the legacy version-1 store layout, upgrades it through the current database version, saves the profile bundle, and verifies read-back.
+
 ## Deferred by phase boundary
 
 - Adaptive Coach, progression, recovery, plateau, and session-feedback decisions (Phase 6)

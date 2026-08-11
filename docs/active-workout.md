@@ -20,6 +20,8 @@ The focused session-state benchmark keeps a normal set mutation below 100 ms. Th
 
 An active session stores the immutable generated prescription plus append-only set records, warm-up choices, exercise cue memory, accepted alternatives, pinned exercise IDs, skipped blocks, pause timing, and a wall-clock rest target. The database upgrade adds `activeSessions` and `exerciseNotes` stores. Rapid critical writes enter a serialized verification queue, then are read back and schema-validated before they are considered saved; the UI rolls back the latest optimistic update if its verification fails.
 
+The verified-write layer also detects legacy out-of-line-key stores that may exist from an older app on the same Pages origin. It supplies each record's stable ID explicitly for those stores, preserving the user's existing browser data instead of deleting or rebuilding the database.
+
 Each set record carries its block, prescription, exercise, kind, set index, superset round, move index, load, reps, RIR, timestamps, and accounting flags. Warm-ups explicitly set progression, PR, and working-volume flags to false.
 
 ## Rest and resume

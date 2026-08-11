@@ -12,6 +12,7 @@ import {
   parseBackupFoundation,
 } from './backup';
 import {
+  DATABASE_NAME,
   loadActiveSession,
   loadBundle,
   loadExerciseNotes,
@@ -22,6 +23,29 @@ import {
 import { loadSettings, saveSettingsVerified } from './settings';
 
 describe('local-first storage foundation', () => {
+  it('preserves and writes through legacy out-of-line-key stores', async () => {
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.open(DATABASE_NAME, 1);
+      request.onupgradeneeded = () => {
+        request.result.createObjectStore('profiles');
+        request.result.createObjectStore('equipmentProfiles');
+        request.result.createObjectStore('locations');
+      };
+      request.onsuccess = () => {
+        request.result.close();
+        resolve();
+      };
+      request.onerror = () => reject(request.error);
+    });
+
+    const demo = createDemoBundle();
+    await saveBundleVerified(demo);
+
+    const loaded = await loadBundle();
+    expect(loaded.profile?.id).toBe('primary-profile');
+    expect(loaded.locations[0]?.name).toBe('Demo Home Gym');
+  });
+
   it('writes durable records and verifies their read-back value', async () => {
     const demo = createDemoBundle();
     saveSettingsVerified(demo.settings);
