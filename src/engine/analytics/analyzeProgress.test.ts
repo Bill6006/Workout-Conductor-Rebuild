@@ -131,4 +131,21 @@ describe('Phase 7 analytics and personal records', () => {
     expect(summary.recoveryNote).toContain('hours');
     expect(summary.nextTargets.length).toBeGreaterThan(0);
   });
+
+  it('keeps kilogram units in Progress milestone details', () => {
+    const first = completed('2026-08-01T12:00:00.000Z', 35, 8);
+    const heavier = completed('2026-08-08T12:00:00.000Z', 40, 8);
+    const result = analyzeProgress(
+      [first, heavier],
+      bundle.profile!,
+      new Date('2026-08-09T12:00:00.000Z'),
+      'kg',
+    );
+    expect(
+      result.personalRecords.some((record) => record.detail.includes('40 kg')),
+    ).toBe(true);
+    expect(
+      result.personalRecords.every((record) => !record.detail.includes('lb')),
+    ).toBe(true);
+  });
 });

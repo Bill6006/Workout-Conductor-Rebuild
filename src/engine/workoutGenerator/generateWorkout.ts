@@ -180,6 +180,50 @@ function exerciseBlock(
   };
 }
 
+function applyReadinessDemand(
+  blocks: WorkoutBlock[],
+  readiness: WorkoutGenerationInput['readiness'],
+): WorkoutBlock[] {
+  if (readiness === 'ready') return blocks;
+
+  const update = (move: ExercisePrescription): ExercisePrescription => ({
+    ...move,
+    sets: readiness === 'low' ? Math.max(1, move.sets - 1) : move.sets,
+    targetRir: Math.min(5, move.targetRir + (readiness === 'low' ? 2 : 1)),
+    dropSet: readiness === 'low' ? null : move.dropSet,
+    loadGuidance:
+      readiness === 'low'
+        ? 'Use a deliberately conservative load and stop with the higher recovery-first RIR target.'
+        : move.loadGuidance,
+  });
+
+  const adjusted = blocks.map((block): WorkoutBlock => {
+    if (block.kind === 'exercise') {
+      const prescription = update(block.prescription);
+      return { ...block, prescription };
+    }
+    const moves = block.moves.map(update);
+    if (block.kind === 'superset') {
+      return {
+        ...block,
+        rounds:
+          readiness === 'low' ? Math.max(1, block.rounds - 1) : block.rounds,
+        moves: moves as [ExercisePrescription, ExercisePrescription],
+      };
+    }
+    return {
+      ...block,
+      rounds:
+        readiness === 'low' ? Math.max(1, block.rounds - 1) : block.rounds,
+      moves,
+    };
+  });
+
+  return readiness === 'low' && adjusted.length > 3
+    ? adjusted.slice(0, -1)
+    : adjusted;
+}
+
 function smartSuperset(args: {
   ranked: ScoredExercise[];
   selected: Set<string>;
@@ -683,6 +727,7 @@ export function generateWorkout(
 
   blocks = applyDropSet(blocks, input);
   blocks = trimToBudget(blocks, targetSeconds);
+  blocks = applyReadinessDemand(blocks, input.readiness);
   const estimate = estimateWorkoutTime(blocks);
   const topPriorities = priorities.slice(0, 4);
   const plannedVolume = calculatePlannedVolume(blocks);
@@ -712,7 +757,11 @@ export function generateWorkout(
   }
   if (input.readiness === 'low') {
     compromises.push(
-      'Low readiness keeps all work at a conservative target RIR.',
+      'Low readiness removed lower-priority work, reduced set demand, raised target RIR, and disabled drop sets.',
+    );
+  } else if (input.readiness === 'moderate') {
+    compromises.push(
+      'Moderate readiness raises target RIR by one while preserving the planned structure.',
     );
   }
   const priorityNames = topPriorities.map((priority) =>

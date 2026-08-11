@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Icon } from './Icon';
 
 type SetValues = { weight: number; reps: number; rir: number };
@@ -31,6 +31,8 @@ export function SetLogger({
   const [weight, setWeight] = useState(String(initialValues.weight));
   const [reps, setReps] = useState(String(initialValues.reps));
   const [rir, setRir] = useState(String(initialValues.rir));
+  const [submitted, setSubmitted] = useState(false);
+  const submittedRef = useRef(false);
   const values = {
     weight: Number(weight),
     reps: Number(reps),
@@ -40,7 +42,7 @@ export function SetLogger({
     Number.isFinite(values.weight) &&
     values.weight >= 0 &&
     Number.isInteger(values.reps) &&
-    values.reps >= 0 &&
+    values.reps > 0 &&
     Number.isInteger(values.rir) &&
     values.rir >= 0 &&
     values.rir <= 10;
@@ -52,7 +54,9 @@ export function SetLogger({
       aria-label={`${setLabel} logger for ${exerciseName}`}
       onSubmit={(event) => {
         event.preventDefault();
-        if (!valid) return;
+        if (!valid || disabled || submittedRef.current) return;
+        submittedRef.current = true;
+        setSubmitted(true);
         const started = performance.now();
         onSubmit(values, performance.now() - started);
       }}
@@ -89,7 +93,7 @@ export function SetLogger({
             aria-label="Reps"
             inputMode="numeric"
             type="number"
-            min="0"
+            min="1"
             step="1"
             value={reps}
             disabled={disabled}
@@ -114,9 +118,10 @@ export function SetLogger({
       <button
         className="log-set-button"
         type="submit"
-        disabled={!valid || disabled}
+        disabled={!valid || disabled || submitted}
       >
-        <Icon name="check" size={21} /> {submitLabel}
+        <Icon name="check" size={21} />{' '}
+        {submitted ? 'Saving set…' : submitLabel}
       </button>
       <p className="set-logger__hint">
         Prefilled from the target or last set. A normal set takes one tap.

@@ -81,6 +81,7 @@ export default function App() {
   const [offlineReady, setOfflineReady] = useState(false);
   const activeSaveQueue = useRef<Promise<void>>(Promise.resolve());
   const activeSaveSequence = useRef(0);
+  const savedWorkoutLocks = useRef(new Set<string>());
 
   useEffect(() => {
     let active = true;
@@ -214,14 +215,24 @@ export default function App() {
     source: SavedWorkout['source'],
     sourceSessionId: string | null = null,
   ) {
-    const saved = await saveWorkoutVerified(
-      createSavedWorkout(workout, source, sourceSessionId),
-    );
-    setSavedWorkouts((current) => [saved, ...current]);
-    setStorageStatus(
-      'Saved workout was written, read back, and verified locally.',
-    );
-    setAnnouncement(`${workout.title} saved for reuse in Plan.`);
+    const logicalKey = `${source}:${sourceSessionId ?? workout.id}`;
+    if (savedWorkoutLocks.current.has(logicalKey)) return;
+    savedWorkoutLocks.current.add(logicalKey);
+    try {
+      const saved = await saveWorkoutVerified(
+        createSavedWorkout(workout, source, sourceSessionId),
+      );
+      setSavedWorkouts((current) => [
+        saved,
+        ...current.filter((item) => item.id !== saved.id),
+      ]);
+      setStorageStatus(
+        'Saved workout was written, read back, and verified locally.',
+      );
+      setAnnouncement(`${workout.title} saved for reuse in Plan.`);
+    } finally {
+      savedWorkoutLocks.current.delete(logicalKey);
+    }
   }
 
   function updateActiveSession(next: ActiveSession, message?: string) {
@@ -242,7 +253,7 @@ export default function App() {
       () => undefined,
       () => undefined,
     );
-    void verification
+    return verification
       .then(() => {
         setStorageStatus(
           'Latest active-workout change was written, read back, schema-validated, and verified.',
@@ -267,7 +278,7 @@ export default function App() {
         </div>
         <span className="loading-pulse" />
         <p>Opening your private training space…</p>
-        <small>WC-P8-0811</small>
+        <small>WC-P8H-0811</small>
       </div>
     );
   }

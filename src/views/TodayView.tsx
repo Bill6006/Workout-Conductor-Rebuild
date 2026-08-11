@@ -37,7 +37,7 @@ type TodayViewProps = {
     workout: ReturnType<typeof generateWorkout>,
     readiness: ReadinessCheck,
   ) => void;
-  onSaveWorkout: (workout: ReturnType<typeof generateWorkout>) => void;
+  onSaveWorkout: (workout: ReturnType<typeof generateWorkout>) => Promise<void>;
 };
 
 type PendingRecalibration = {
@@ -94,6 +94,7 @@ export function TodayView({
     null,
   );
   const [busyEquipment, setBusyEquipment] = useState<EquipmentId | ''>('');
+  const [workoutSavePending, setWorkoutSavePending] = useState(false);
   const [readiness, setReadiness] = useState<ReadinessCheck>(() => ({
     energy: 3,
     soreness: 2,
@@ -302,9 +303,9 @@ export function TodayView({
 
       <div className="phase-banner">
         <span className="status-pill">
-          <span /> Phase 8 live
+          <span /> Phase 8 hardening
         </span>
-        <span className="build-label">WC-P8-0811</span>
+        <span className="build-label">WC-P8H-0811</span>
       </div>
 
       <section className="today-hero" aria-labelledby="today-workout-title">
@@ -413,9 +414,17 @@ export function TodayView({
         <button
           className="save-workout-button"
           type="button"
-          onClick={() => onSaveWorkout(workout)}
+          disabled={workoutSavePending}
+          onClick={() => {
+            if (workoutSavePending) return;
+            setWorkoutSavePending(true);
+            void onSaveWorkout(workout).finally(() =>
+              setWorkoutSavePending(false),
+            );
+          }}
         >
-          <Icon name="check" size={17} /> Save workout
+          <Icon name="check" size={17} />{' '}
+          {workoutSavePending ? 'Saving workout…' : 'Save workout'}
         </button>
       </section>
 

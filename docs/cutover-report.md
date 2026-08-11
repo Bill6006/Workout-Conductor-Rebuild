@@ -2,9 +2,11 @@
 
 Status: **YELLOW — implementation complete; awaiting Android review**
 
-Release: `0.8.0`
+Release: `0.8.1`
 
-Build marker: `WC-P8-0811`
+Build marker: `WC-P8H-0811`
+
+Hardening status: all ten findings from the independent adversarial QA pass have implementation and regression-test closures. See the [Phase 8 hardening report](phase-reports/PHASE_8_HARDENING.md). Final approval remains withheld pending a separate adversarial retest.
 
 ## Release scope
 
@@ -28,7 +30,7 @@ Final command results and the deployed commit are recorded in [PROJECT_STATUS.md
 
 ## Android review
 
-The remaining gate is hands-on review on the user's Android device: install or refresh the PWA, confirm the `WC-P8-0811` marker, exercise export/preview/rollback with synthetic or disposable data, test an interrupted active workout, and inspect the guide and 200% zoom behavior. No Phase 9 is defined.
+The remaining gate is independent adversarial retesting plus hands-on review on the user's Android device: install or refresh the PWA, confirm the `WC-P8H-0811` marker, exercise export/preview/rollback with synthetic or disposable data, test an interrupted active workout, and inspect the guide and 200% zoom behavior. No Phase 9 is defined.
 
 ## Evidence
 

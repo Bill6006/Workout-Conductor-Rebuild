@@ -78,7 +78,7 @@ function makePr(
 export function detectSessionPersonalRecords(
   session: ActiveSession,
   priorSessions: ActiveSession[],
-  units = 'lb',
+  units: 'lb' | 'kg' = 'lb',
 ): PersonalRecord[] {
   const prior = completedSessions(priorSessions).filter(
     (candidate) => candidate.id !== session.id,
@@ -296,6 +296,7 @@ export function analyzeProgress(
   sessions: ActiveSession[],
   profile: Profile,
   now: Date = new Date(),
+  units: 'lb' | 'kg' = 'lb',
 ): ProgressAnalytics {
   const completed = completedSessions(sessions);
   const fourWeekStart = now.getTime() - 28 * DAY;
@@ -313,7 +314,11 @@ export function analyzeProgress(
   const allPrs: PersonalRecord[] = [];
   completed.forEach((session, index) => {
     allPrs.push(
-      ...detectSessionPersonalRecords(session, completed.slice(0, index)),
+      ...detectSessionPersonalRecords(
+        session,
+        completed.slice(0, index),
+        units,
+      ),
     );
   });
 
@@ -444,7 +449,7 @@ export function buildSessionSummary(
   session: ActiveSession,
   priorSessions: ActiveSession[],
   profile: Profile,
-  units = 'lb',
+  units: 'lb' | 'kg' = 'lb',
 ): SessionSummary {
   const records = volumeRecords(session);
   const history = priorSessions.filter(
@@ -454,6 +459,7 @@ export function buildSessionSummary(
     [...history, session],
     profile,
     new Date(session.completedAt ?? session.updatedAt),
+    units,
   );
   const musclesTrained = coverageFor(
     [session],

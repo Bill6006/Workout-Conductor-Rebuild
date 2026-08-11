@@ -12,6 +12,13 @@ export function calculatePlateMath(
   barWeight = 45,
   inventory = [45, 25, 10, 5, 2.5],
 ): PlateMathResult {
+  if (!Number.isFinite(totalWeight) || totalWeight < 0) {
+    return {
+      label: 'Enter a nonnegative target weight.',
+      platesPerSide: [],
+      remainder: 0,
+    };
+  }
   if (exercise.plateMath.eachHand) {
     return {
       label: `${totalWeight} per hand`,

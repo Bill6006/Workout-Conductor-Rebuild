@@ -14,7 +14,7 @@ export const ActiveSetRecordSchema = z.object({
   roundIndex: z.number().int().nonnegative().nullable(),
   moveIndex: z.number().int().nonnegative(),
   weight: z.number().min(0).max(5000),
-  reps: z.number().int().min(0).max(1000),
+  reps: z.number().int().min(1).max(1000),
   rir: z.number().int().min(0).max(10),
   tempo: z.string().min(1).max(40).nullable().default(null),
   restSecondsTaken: z.number().int().min(0).max(3600).nullable().default(null),

@@ -15,6 +15,31 @@ export function blockMoves(block: WorkoutBlock): ExercisePrescription[] {
   return block.kind === 'exercise' ? [block.prescription] : block.moves;
 }
 
+export function initialSetValues(
+  records: ActiveSetRecord[],
+  move: ExercisePrescription,
+  slot: SetSlot,
+) {
+  const previous = records
+    .filter(
+      (record) =>
+        record.prescriptionId === move.prescriptionId &&
+        record.exerciseId === move.exerciseId &&
+        record.kind === slot.kind,
+    )
+    .at(-1);
+  const numericTargetReps = Number(slot.targetReps);
+  return {
+    weight: previous?.weight ?? (slot.kind === 'warmup' ? 20 : 40),
+    reps:
+      previous?.reps ??
+      (Number.isInteger(numericTargetReps) && numericTargetReps > 0
+        ? numericTargetReps
+        : move.repRange.max),
+    rir: previous?.rir ?? slot.targetRir,
+  };
+}
+
 function sessionTimestamp(now: Date | string = new Date()) {
   return typeof now === 'string' ? now : now.toISOString();
 }
@@ -254,6 +279,9 @@ export function logSet(
 ): ActiveSession {
   if (session.status !== 'active') {
     throw new Error('Resume the workout before logging a set.');
+  }
+  if (values.reps < 1 || !Number.isInteger(values.reps)) {
+    throw new Error('A completed set requires at least one repetition.');
   }
   const timestamp = sessionTimestamp(now);
   const record: ActiveSetRecord = {

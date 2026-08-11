@@ -124,6 +124,33 @@ describe('Phase 4 central recalibration engine', () => {
     );
   });
 
+  it('QA-P8-002 applies lower volume and higher RIR to low readiness', () => {
+    const current = generated('default');
+    const result = successful(
+      recalibrateWorkout(
+        requestFor(current, {
+          trigger: 'readiness-change',
+          readinessOverride: 'low',
+          reason: 'Extreme low readiness confirmed',
+        }),
+      ),
+    );
+    const currentMoves = current.blocks.flatMap((block) =>
+      block.kind === 'exercise' ? [block.prescription] : block.moves,
+    );
+    const nextMoves = result.workout.blocks.flatMap((block) =>
+      block.kind === 'exercise' ? [block.prescription] : block.moves,
+    );
+
+    expect(result.workout.blocks.length).toBeLessThan(current.blocks.length);
+    expect(
+      Math.min(...nextMoves.map((move) => move.targetRir)),
+    ).toBeGreaterThan(Math.min(...currentMoves.map((move) => move.targetRir)));
+    expect(result.workout.estimatedSeconds).toBeLessThan(
+      current.estimatedSeconds,
+    );
+  });
+
   it('recalibrates Default → 15 → 30 → 45 → Default with one duration model', () => {
     let current = generated('default');
     for (const duration of ['15', '30', '45', 'default'] as const) {

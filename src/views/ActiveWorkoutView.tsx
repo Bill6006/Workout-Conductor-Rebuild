@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { equipmentById } from '../catalog/equipment';
 import { exerciseById } from '../catalog/exercises';
 import type { Exercise } from '../catalog/schema';
@@ -28,12 +28,12 @@ import { calculatePlateMath } from '../features/activeWorkout/plateMath';
 import {
   ActiveSessionSchema,
   type ActiveSession,
-  type ActiveSetRecord,
 } from '../features/activeWorkout/schema';
 import {
   blockMoves,
   editSet,
   elapsedSessionSeconds,
+  initialSetValues,
   logSet,
   nextSetSlot,
   pauseSession,
@@ -52,8 +52,11 @@ type ActiveWorkoutViewProps = {
   session: ActiveSession;
   bundle: AppBundle;
   sessionHistory: ActiveSession[];
-  onSessionChange: (session: ActiveSession, message?: string) => void;
-  onSaveWorkout: (workout: GeneratedWorkout, sessionId: string) => void;
+  onSessionChange: (session: ActiveSession, message?: string) => Promise<void>;
+  onSaveWorkout: (
+    workout: GeneratedWorkout,
+    sessionId: string,
+  ) => Promise<void>;
 };
 
 function formatClock(seconds: number) {
@@ -69,24 +72,6 @@ function prescriptionForSlot(
     blockMoves(block).find((move) => move.prescriptionId === prescriptionId) ??
     null
   );
-}
-
-function lastValues(
-  records: ActiveSetRecord[],
-  move: ExercisePrescription | null,
-  kind: ActiveSetRecord['kind'] | undefined,
-) {
-  const previous = records
-    .filter(
-      (record) =>
-        record.prescriptionId === move?.prescriptionId && record.kind === kind,
-    )
-    .at(-1);
-  return {
-    weight: previous?.weight ?? (kind === 'warmup' ? 20 : 40),
-    reps: previous?.reps ?? move?.repRange.max ?? 8,
-    rir: previous?.rir ?? move?.targetRir ?? 2,
-  };
 }
 
 function currentRoundLabel(block: WorkoutBlock, setIndex: number) {
@@ -144,6 +129,9 @@ export function ActiveWorkoutView({
   const [noteDraft, setNoteDraft] = useState('');
   const [plateWeight, setPlateWeight] = useState(40);
   const [interactionMessage, setInteractionMessage] = useState('');
+  const [setSubmissionPending, setSetSubmissionPending] = useState(false);
+  const [workoutSavePending, setWorkoutSavePending] = useState(false);
+  const setSubmissionLock = useRef(false);
   const [pendingCoachAction, setPendingCoachAction] =
     useState<CoachAction | null>(null);
   const [feedbackDifficulty, setFeedbackDifficulty] = useState<
@@ -250,8 +238,8 @@ export function ActiveWorkoutView({
     : null;
 
   function changeSession(next: ActiveSession, message?: string) {
-    onSessionChange(next, message);
     if (message) setInteractionMessage(message);
+    return onSessionChange(next, message);
   }
 
   function startRest(next: ActiveSession, restSeconds: number) {
@@ -271,22 +259,29 @@ export function ActiveWorkoutView({
     });
   }
 
-  function handleLog(
+  async function handleLog(
     values: { weight: number; reps: number; rir: number },
     responseMilliseconds: number,
   ) {
-    if (!slot || !block) return;
-    const logged = logSet(session, slot, values);
-    const isRoundEnd =
-      block.kind === 'exercise' ||
-      slot.moveIndex === blockMoves(block).length - 1;
-    const next = isRoundEnd ? startRest(logged, slot.restSeconds) : logged;
-    changeSession(
-      next,
-      next.status === 'completed'
-        ? 'Workout complete. Final block closed without an extra set or timer.'
-        : `${slot.kind === 'warmup' ? 'Warm-up' : 'Set'} saved and verified locally in ${responseMilliseconds.toFixed(1)} ms.`,
-    );
+    if (!slot || !block || setSubmissionLock.current) return;
+    setSubmissionLock.current = true;
+    setSetSubmissionPending(true);
+    try {
+      const logged = logSet(session, slot, values);
+      const isRoundEnd =
+        block.kind === 'exercise' ||
+        slot.moveIndex === blockMoves(block).length - 1;
+      const next = isRoundEnd ? startRest(logged, slot.restSeconds) : logged;
+      await changeSession(
+        next,
+        next.status === 'completed'
+          ? 'Workout complete. Final block closed without an extra set or timer.'
+          : `${slot.kind === 'warmup' ? 'Warm-up' : 'Set'} saved and verified locally in ${responseMilliseconds.toFixed(1)} ms.`,
+      );
+    } finally {
+      setSubmissionLock.current = false;
+      setSetSubmissionPending(false);
+    }
   }
 
   function handleTimerAdjust(delta: number) {
@@ -671,9 +666,17 @@ export function ActiveWorkoutView({
           <button
             className="review-workout-button"
             type="button"
-            onClick={() => onSaveWorkout(session.workout, session.id)}
+            disabled={workoutSavePending}
+            onClick={() => {
+              if (workoutSavePending) return;
+              setWorkoutSavePending(true);
+              void onSaveWorkout(session.workout, session.id).finally(() =>
+                setWorkoutSavePending(false),
+              );
+            }}
           >
-            <Icon name="check" size={17} /> Save this workout
+            <Icon name="check" size={17} />{' '}
+            {workoutSavePending ? 'Saving workout…' : 'Save this workout'}
           </button>
         </section>
         <section
@@ -751,9 +754,9 @@ export function ActiveWorkoutView({
 
       <div className="phase-banner">
         <span className="status-pill">
-          <span /> Phase 8 live
+          <span /> Phase 8 hardening
         </span>
-        <span className="build-label">WC-P8-0811</span>
+        <span className="build-label">WC-P8H-0811</span>
       </div>
 
       {livePrs.length > 0 && (
@@ -939,8 +942,8 @@ export function ActiveWorkoutView({
         )}
 
         <SetLogger
-          key={`${slot.prescriptionId}:${slot.kind}:${slot.setIndex}:${slot.roundIndex}`}
-          loggerKey={`${slot.prescriptionId}:${slot.kind}:${slot.setIndex}:${slot.roundIndex}`}
+          key={`${slot.prescriptionId}:${move.exerciseId}:${slot.kind}:${slot.setIndex}:${slot.roundIndex}`}
+          loggerKey={`${slot.prescriptionId}:${move.exerciseId}:${slot.kind}:${slot.setIndex}:${slot.roundIndex}`}
           exerciseName={move.exerciseName}
           setLabel={
             slot.kind === 'warmup'
@@ -952,9 +955,11 @@ export function ActiveWorkoutView({
           targetReps={slot.targetReps}
           targetRir={slot.targetRir}
           units={bundle.settings.units}
-          initialValues={lastValues(session.records, move, slot.kind)}
-          disabled={session.status !== 'active'}
-          onSubmit={handleLog}
+          initialValues={initialSetValues(session.records, move, slot)}
+          disabled={session.status !== 'active' || setSubmissionPending}
+          onSubmit={(values, responseMilliseconds) =>
+            void handleLog(values, responseMilliseconds)
+          }
         />
 
         <div className="active-exercise-actions">

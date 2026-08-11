@@ -45,8 +45,8 @@ describe('Phase 8 final acceptance', () => {
   it('saves a synthetic demo and renders the useful Today dashboard', async () => {
     await openSyntheticDemo();
 
-    expect(screen.getByText('Phase 8 live')).toBeInTheDocument();
-    expect(screen.getByText('WC-P8-0811')).toBeInTheDocument();
+    expect(screen.getByText('Phase 8 hardening')).toBeInTheDocument();
+    expect(screen.getByText('WC-P8H-0811')).toBeInTheDocument();
     expect(screen.getByText('Adaptive Coach')).toBeInTheDocument();
     expect(screen.getByText('Generated locally')).toBeInTheDocument();
     const duration = screen.getByRole('combobox', { name: 'Workout length' });
@@ -178,10 +178,45 @@ describe('Phase 8 final acceptance', () => {
     ).toBeInTheDocument();
   });
 
+  it('saves unrelated Settings edits with a decimal bodyweight', async () => {
+    await openSyntheticDemo();
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    const bodyweight = await screen.findByRole('spinbutton', {
+      name: 'Bodyweight (lb)',
+    });
+    expect(bodyweight).toHaveAttribute('step', 'any');
+    fireEvent.change(bodyweight, { target: { value: '182.5' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Profile name' }), {
+      target: { value: 'Decimal Athlete' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save local profile' }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(
+          'Profile, settings, and saved locations were written and verified.',
+        ),
+      ).toBeInTheDocument(),
+    );
+  });
+
+  it('stores one reusable workout after a rapid double click', async () => {
+    await openSyntheticDemo();
+    const save = screen.getByRole('button', { name: 'Save workout' });
+    fireEvent.click(save);
+    fireEvent.click(save);
+    await screen.findByRole('button', {
+      name: /saved for reuse in Plan/,
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Plan' }));
+    await screen.findByRole('heading', { name: 'Reusable sessions' });
+    expect(screen.getAllByRole('button', { name: 'Start' })).toHaveLength(1);
+  });
+
   it('starts a premium active workout and logs a one-tap prefilled set', async () => {
     await startActiveWorkout();
     expect(screen.getByText('Active workout')).toBeInTheDocument();
-    expect(screen.getByText('WC-P8-0811')).toBeInTheDocument();
+    expect(screen.getByText('WC-P8H-0811')).toBeInTheDocument();
     expect(screen.getByRole('spinbutton', { name: 'Weight' })).toHaveValue(40);
     expect(screen.getByRole('spinbutton', { name: 'Reps' })).toHaveValue(8);
     expect(screen.getByRole('spinbutton', { name: 'RIR' })).toHaveValue(2);

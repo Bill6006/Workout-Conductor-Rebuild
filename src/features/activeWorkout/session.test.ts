@@ -8,9 +8,11 @@ import {
 import { calculatePlateMath } from './plateMath';
 import { ActiveSessionSchema } from './schema';
 import {
+  blockMoves,
   createActiveSession,
   editSet,
   elapsedSessionSeconds,
+  initialSetValues,
   logSet,
   nextSetSlot,
   pauseSession,
@@ -91,6 +93,53 @@ describe('Phase 5 durable active workout session', () => {
     expect(performance.now() - before).toBeLessThan(100);
     expect(next.records).toHaveLength(1);
     expect(next.records[0]).toMatchObject({ weight: 40, reps: 8, rir: 2 });
+  });
+
+  it('rejects zero-rep completed records at the session boundary', () => {
+    const session = createActiveSession(generated(), startedAt);
+    const slot = nextSetSlot(session)!;
+    expect(() =>
+      logSet(session, slot, { weight: 40, reps: 0, rir: 2 }, startedAt),
+    ).toThrow('at least one repetition');
+  });
+
+  it('resets replacement values and uses the warm-up slot RIR', () => {
+    const session = createActiveSession(generated(), startedAt);
+    const workingSlot = nextSetSlot(session)!;
+    const originalMove = blockMoves(session.workout.blocks[0])[0];
+    const afterOriginal = logSet(
+      session,
+      workingSlot,
+      { weight: 75, reps: 30, rir: 2 },
+      startedAt,
+    );
+    const replacementMove = {
+      ...originalMove,
+      exerciseId: 'incline-dumbbell-press',
+      exerciseName: 'Incline Dumbbell Press',
+      repRange: { min: 8, max: 12 },
+      targetRir: 1,
+    };
+    expect(
+      initialSetValues(afterOriginal.records, replacementMove, {
+        ...workingSlot,
+        exerciseId: replacementMove.exerciseId,
+        exerciseName: replacementMove.exerciseName,
+        targetReps: '8–12',
+        targetRir: 1,
+      }),
+    ).toEqual({ weight: 40, reps: 12, rir: 1 });
+
+    const withRamp = setWarmupChoice(
+      session,
+      workingSlot.prescriptionId,
+      'added',
+      startedAt,
+    );
+    const warmupSlot = nextSetSlot(withRamp)!;
+    expect(
+      initialSetValues(withRamp.records, originalMove, warmupSlot),
+    ).toMatchObject({ reps: 8, rir: 4 });
   });
 
   it('edits a completed set inline without adding a set or changing position', () => {
@@ -217,5 +266,8 @@ describe('Phase 5 durable active workout session', () => {
     });
     const dumbbell = exerciseById.get('dumbbell-bench-press')!;
     expect(calculatePlateMath(dumbbell, 50).label).toBe('50 per hand');
+    expect(calculatePlateMath(dumbbell, -5).label).toBe(
+      'Enter a nonnegative target weight.',
+    );
   });
 });

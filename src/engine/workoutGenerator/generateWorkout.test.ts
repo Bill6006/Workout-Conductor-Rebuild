@@ -77,6 +77,39 @@ describe('Phase 3 deterministic workout generation', () => {
     );
   });
 
+  it('materially reduces demand when readiness is low', () => {
+    const readyInput = demoInput('default');
+    const lowInput = { ...demoInput('default'), readiness: 'low' as const };
+    const ready = generateWorkout(readyInput);
+    const low = generateWorkout(lowInput);
+    const readyMoves = prescriptions(ready.blocks);
+    const lowMoves = prescriptions(low.blocks);
+    const readySets = ready.blocks.reduce(
+      (total, block) =>
+        total +
+        (block.kind === 'exercise'
+          ? block.prescription.sets
+          : block.rounds * block.moves.length),
+      0,
+    );
+    const lowSets = low.blocks.reduce(
+      (total, block) =>
+        total +
+        (block.kind === 'exercise'
+          ? block.prescription.sets
+          : block.rounds * block.moves.length),
+      0,
+    );
+
+    expect(low.blocks.length).toBeLessThan(ready.blocks.length);
+    expect(lowSets).toBeLessThan(readySets);
+    expect(Math.min(...lowMoves.map((move) => move.targetRir))).toBeGreaterThan(
+      Math.min(...readyMoves.map((move) => move.targetRir)),
+    );
+    expect(lowMoves.every((move) => move.dropSet === null)).toBe(true);
+    expect(low.compromises.join(' ')).toContain('reduced set demand');
+  });
+
   it('treats a short profile default as the same hard time ceiling', () => {
     const input = demoInput('default');
     input.profile = { ...input.profile, typicalDuration: 15 };

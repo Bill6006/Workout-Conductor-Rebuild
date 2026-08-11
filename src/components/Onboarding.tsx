@@ -13,6 +13,7 @@ import {
   type AppSettings,
   type Profile,
 } from '../domain/models';
+import { ZodError } from 'zod';
 import {
   createDemoBundle,
   defaultSettings,
@@ -83,9 +84,11 @@ export function Onboarding({ onComplete, onCancel }: OnboardingProps) {
       await onComplete(bundle);
     } catch (saveError) {
       setError(
-        saveError instanceof Error
-          ? saveError.message
-          : 'Unable to save setup.',
+        saveError instanceof ZodError
+          ? (saveError.issues[0]?.message ?? 'Setup contains an invalid value.')
+          : saveError instanceof Error
+            ? saveError.message
+            : 'Unable to save setup.',
       );
       setSaving(false);
     }
@@ -95,6 +98,16 @@ export function Onboarding({ onComplete, onCancel }: OnboardingProps) {
     const updatedAt = new Date().toISOString();
     const equipmentProfileId = 'equipment-primary';
     const parsedBodyweight = Number(bodyweightText);
+    if (
+      bodyweightText.trim() &&
+      (!Number.isFinite(parsedBodyweight) ||
+        parsedBodyweight <= 0 ||
+        parsedBodyweight > 1000)
+    ) {
+      setError('Bodyweight must be greater than 0 and no more than 1000.');
+      document.getElementById('onboarding-bodyweight')?.focus();
+      return;
+    }
     const completedProfile: Profile = {
       ...profile,
       preferredExercises: listFromText(preferredText),
@@ -215,7 +228,7 @@ export function Onboarding({ onComplete, onCancel }: OnboardingProps) {
             </p>
             <h1>{stepTitles[step]}</h1>
           </div>
-          <span className="build-label">WC-P8-0811</span>
+          <span className="build-label">WC-P8H-0811</span>
         </header>
         <div
           className="setup-progress"
@@ -604,10 +617,14 @@ export function Onboarding({ onComplete, onCancel }: OnboardingProps) {
             <label className="field-label">
               Optional bodyweight ({settings.units})
               <input
+                id="onboarding-bodyweight"
                 type="number"
                 min="1"
                 max="1000"
+                step="any"
                 inputMode="decimal"
+                aria-describedby={error ? 'onboarding-form-error' : undefined}
+                aria-invalid={Boolean(error)}
                 value={bodyweightText}
                 placeholder="Optional"
                 onChange={(event) => setBodyweightText(event.target.value)}
@@ -624,7 +641,7 @@ export function Onboarding({ onComplete, onCancel }: OnboardingProps) {
         )}
 
         {error && (
-          <p className="form-error" role="alert">
+          <p className="form-error" id="onboarding-form-error" role="alert">
             {error}
           </p>
         )}

@@ -20,7 +20,13 @@ export function ProgressView({
 }) {
   const [showEvidence, setShowEvidence] = useState(false);
   const analytics = useMemo(
-    () => analyzeProgress(sessionHistory, bundle.profile!),
+    () =>
+      analyzeProgress(
+        sessionHistory,
+        bundle.profile!,
+        new Date(),
+        bundle.settings.units,
+      ),
     [bundle, sessionHistory],
   );
   const units = bundle.settings.units;
@@ -268,7 +274,7 @@ export function ProgressView({
 
       <section className="build-card">
         <p className="eyebrow">Current visible build</p>
-        <strong>WC-P8-0811</strong>
+        <strong>WC-P8H-0811</strong>
         <span>Phase 8 · Data safety, offline readiness, and acceptance</span>
       </section>
     </>

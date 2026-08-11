@@ -22,7 +22,12 @@ export function PlanView({
   ) => void;
 }) {
   const profile = bundle.profile!;
-  const analytics = analyzeProgress(sessionHistory, profile);
+  const analytics = analyzeProgress(
+    sessionHistory,
+    profile,
+    new Date(),
+    bundle.settings.units,
+  );
   const readiness: ReadinessCheck = {
     energy: 3,
     soreness: 2,

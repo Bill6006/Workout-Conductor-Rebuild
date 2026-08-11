@@ -16,6 +16,8 @@ This is intentionally better than a button grid for a fatigued, one-handed user:
 
 The focused session-state benchmark keeps a normal set mutation below 100 ms. The UI reports only after an optimistic local update and verified IndexedDB read-back.
 
+Completed sets require at least one repetition at both the interaction and persisted-schema boundaries. Submission locks prevent rapid repeated activation from advancing two sets. Logger defaults are tied to the exact exercise and slot, so a replacement cannot inherit stale values and warm-ups use their own RIR target.
+
 ## Durable session model
 
 An active session stores the immutable generated prescription plus append-only set records, warm-up choices, exercise cue memory, accepted alternatives, pinned exercise IDs, skipped blocks, pause timing, and a wall-clock rest target. The database upgrade adds `activeSessions` and `exerciseNotes` stores. Rapid critical writes enter a serialized verification queue, then are read back and schema-validated before they are considered saved; the UI rolls back the latest optimistic update if its verification fails.

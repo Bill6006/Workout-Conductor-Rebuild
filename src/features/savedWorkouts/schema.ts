@@ -19,8 +19,9 @@ export function createSavedWorkout(
   now: Date = new Date(),
 ): SavedWorkout {
   const savedAt = now.toISOString();
+  const logicalSourceId = sourceSessionId ?? workout.id;
   return SavedWorkoutSchema.parse({
-    id: `saved-${workout.id}-${savedAt}`,
+    id: `saved-${source}-${logicalSourceId}`,
     name: workout.title,
     workout,
     source,

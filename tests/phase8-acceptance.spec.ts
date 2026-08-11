@@ -5,7 +5,7 @@ async function openDemo(page: Page) {
   await page
     .getByRole('button', { name: 'Explore with a synthetic demo profile' })
     .click();
-  await expect(page.getByText('WC-P8-0811')).toBeVisible();
+  await expect(page.getByText('WC-P8H-0811')).toBeVisible();
 }
 
 test('exports every protected store, previews exact restore, verifies it, and rolls it back', async ({
@@ -146,7 +146,7 @@ test('installs a controlled service worker and reloads the app shell offline', a
     await navigator.serviceWorker.ready;
   });
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await expect(page.getByText('WC-P8-0811')).toBeVisible();
+  await expect(page.getByText('WC-P8H-0811')).toBeVisible();
   expect(
     await page.evaluate(() => Boolean(navigator.serviceWorker.controller)),
   ).toBe(true);
@@ -154,7 +154,7 @@ test('installs a controlled service worker and reloads the app shell offline', a
   await context.setOffline(true);
   try {
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await expect(page.getByText('WC-P8-0811')).toBeVisible();
+    await expect(page.getByText('WC-P8H-0811')).toBeVisible();
   } finally {
     await context.setOffline(false);
   }

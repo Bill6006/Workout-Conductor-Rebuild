@@ -25,7 +25,7 @@ test('captures the final mobile data-safety and demonstration evidence', async (
   await page
     .getByRole('button', { name: 'Explore with a synthetic demo profile' })
     .click();
-  await expect(page.getByText('WC-P8-0811')).toBeVisible();
+  await expect(page.getByText('WC-P8H-0811')).toBeVisible();
   const offlineReady = page.getByRole('button', {
     name: 'Offline app shell ready',
   });
