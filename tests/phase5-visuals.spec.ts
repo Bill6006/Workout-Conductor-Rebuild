@@ -2,7 +2,9 @@ import { expect, test, type Page } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 
-const evidenceDirectory = path.resolve('docs/screenshots/phase-5');
+const evidenceDirectory = process.env.CAPTURE_PHASE5_EVIDENCE
+  ? path.resolve('docs/screenshots/phase-5')
+  : path.resolve('test-results/phase5-visuals');
 
 async function startSyntheticWorkout(page: Page) {
   await page.goto('./', { waitUntil: 'domcontentloaded' });

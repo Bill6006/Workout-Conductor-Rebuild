@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './App.css';
 import { Icon, type IconName } from './components/Icon';
 import { Onboarding } from './components/Onboarding';
@@ -44,6 +44,8 @@ export default function App() {
   const [activeSession, setActiveSession] = useState<ActiveSession | null>(
     null,
   );
+  const activeSaveQueue = useRef<Promise<void>>(Promise.resolve());
+  const activeSaveSequence = useRef(0);
 
   useEffect(() => {
     let active = true;
@@ -127,15 +129,24 @@ export default function App() {
 
   function updateActiveSession(next: ActiveSession, message?: string) {
     const previous = activeSession;
+    const sequence = ++activeSaveSequence.current;
     setActiveSession(next);
     if (message) setAnnouncement(message);
-    void saveActiveSessionVerified(next)
+    const verification = activeSaveQueue.current
+      .catch(() => undefined)
+      .then(() => saveActiveSessionVerified(next));
+    activeSaveQueue.current = verification.then(
+      () => undefined,
+      () => undefined,
+    );
+    void verification
       .then(() => {
         setStorageStatus(
           'Latest active-workout change was written, read back, schema-validated, and verified.',
         );
       })
       .catch((error: unknown) => {
+        if (sequence !== activeSaveSequence.current) return;
         setActiveSession(previous);
         const detail =
           error instanceof Error

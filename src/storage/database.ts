@@ -31,6 +31,7 @@ export const storeNames = {
 type StoreName = (typeof storeNames)[keyof typeof storeNames];
 
 let databasePromise: Promise<IDBDatabase> | null = null;
+const pendingWrites = new Set<Promise<unknown>>();
 
 function requestResult<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -90,7 +91,7 @@ export async function getAllRecords<T>(
   return values.map((value) => schema.parse(value));
 }
 
-export async function writeRecordVerified<T extends { id: string }>(
+async function performVerifiedWrite<T extends { id: string }>(
   storeName: StoreName,
   value: T,
   schema: z.ZodType<T>,
@@ -116,6 +117,20 @@ export async function writeRecordVerified<T extends { id: string }>(
   }
 
   return verified;
+}
+
+export function writeRecordVerified<T extends { id: string }>(
+  storeName: StoreName,
+  value: T,
+  schema: z.ZodType<T>,
+): Promise<T> {
+  const operation = performVerifiedWrite(storeName, value, schema);
+  pendingWrites.add(operation);
+  void operation.then(
+    () => pendingWrites.delete(operation),
+    () => pendingWrites.delete(operation),
+  );
+  return operation;
 }
 
 export async function saveBundleVerified(
@@ -210,6 +225,19 @@ export async function loadExerciseNotes(): Promise<ExerciseNote[]> {
 }
 
 export async function resetDatabaseForTests(): Promise<void> {
+  // React may have optimistic saves queued in a microtask when a test unmounts.
+  // Drain those verified writes before deleting the shared fake IndexedDB so a
+  // late save cannot repopulate the next test's fresh database.
+  while (true) {
+    await Promise.resolve();
+    const writes = Array.from(pendingWrites);
+    if (writes.length === 0) {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+      if (pendingWrites.size === 0) break;
+      continue;
+    }
+    await Promise.allSettled(writes);
+  }
   if (databasePromise) {
     const database = await databasePromise;
     database.close();

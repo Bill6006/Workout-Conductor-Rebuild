@@ -18,7 +18,7 @@ The focused session-state benchmark keeps a normal set mutation below 100 ms. Th
 
 ## Durable session model
 
-An active session stores the immutable generated prescription plus append-only set records, warm-up choices, exercise cue memory, accepted alternatives, pinned exercise IDs, skipped blocks, pause timing, and a wall-clock rest target. The database upgrade adds `activeSessions` and `exerciseNotes` stores. Critical writes are read back and schema-validated before they are considered saved; the UI rolls back an optimistic update if verification fails.
+An active session stores the immutable generated prescription plus append-only set records, warm-up choices, exercise cue memory, accepted alternatives, pinned exercise IDs, skipped blocks, pause timing, and a wall-clock rest target. The database upgrade adds `activeSessions` and `exerciseNotes` stores. Rapid critical writes enter a serialized verification queue, then are read back and schema-validated before they are considered saved; the UI rolls back the latest optimistic update if its verification fails.
 
 Each set record carries its block, prescription, exercise, kind, set index, superset round, move index, load, reps, RIR, timestamps, and accounting flags. Warm-ups explicitly set progression, PR, and working-volume flags to false.
 
