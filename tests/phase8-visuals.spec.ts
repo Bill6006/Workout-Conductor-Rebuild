@@ -16,6 +16,22 @@ async function saveViewport(
   });
 }
 
+async function dismissTransientBanners(page: import('@playwright/test').Page) {
+  const banners = [
+    page.getByRole('button', { name: 'Offline app shell ready' }),
+    page.getByRole('button', {
+      name: 'Synthetic demo profile saved locally.',
+    }),
+  ];
+  await page.waitForTimeout(200);
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    for (const banner of banners) {
+      if (await banner.isVisible()) await banner.click({ force: true });
+    }
+    await page.waitForTimeout(50);
+  }
+}
+
 test('captures the final mobile data-safety and demonstration evidence', async ({
   page,
 }) => {
@@ -26,15 +42,8 @@ test('captures the final mobile data-safety and demonstration evidence', async (
   await page
     .getByRole('button', { name: 'Explore with a synthetic demo profile' })
     .click();
-  await expect(page.getByText('WC-P8R2-0811')).toBeVisible();
-  const offlineReady = page.getByRole('button', {
-    name: 'Offline app shell ready',
-  });
-  if (await offlineReady.isVisible()) await offlineReady.click();
-  const announcement = page.getByRole('button', {
-    name: 'Synthetic demo profile saved locally.',
-  });
-  if (await announcement.isVisible()) await announcement.click();
+  await expect(page.getByText('WC-P8R3-0811')).toBeVisible();
+  await dismissTransientBanners(page);
   await saveViewport(page, 'final-today-412x915.png');
 
   await page.getByRole('button', { name: 'Settings' }).click();
@@ -46,8 +55,7 @@ test('captures the final mobile data-safety and demonstration evidence', async (
     .getByRole('button', { name: 'Export complete backup' })
     .scrollIntoViewIfNeeded();
   await page.mouse.wheel(0, 320);
-  if (await offlineReady.isVisible()) await offlineReady.click();
-  if (await announcement.isVisible()) await announcement.click();
+  await dismissTransientBanners(page);
   await saveViewport(page, 'data-safety-412x915.png');
 
   await page.getByRole('button', { name: 'Today' }).click();

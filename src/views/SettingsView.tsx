@@ -339,7 +339,7 @@ export function SettingsView({
           <span className="status-pill">
             <span /> Profile active
           </span>
-          <span className="build-label">WC-P8R2-0811</span>
+          <span className="build-label">WC-P8R3-0811</span>
         </div>
         <h2>{profile.displayName}</h2>
         <p>

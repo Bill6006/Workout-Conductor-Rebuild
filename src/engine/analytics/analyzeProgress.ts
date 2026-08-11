@@ -38,6 +38,13 @@ function recordVolume(record: ActiveSetRecord, units: WeightUnit) {
   return weightInUnit(record, units) * record.reps;
 }
 
+export function sumRecordVolume(records: ActiveSetRecord[], units: WeightUnit) {
+  return records.reduce(
+    (total, record) => total + recordVolume(record, units),
+    0,
+  );
+}
+
 function completedSessions(sessions: ActiveSession[]) {
   return sessions
     .filter(
@@ -179,14 +186,14 @@ export function detectSessionPersonalRecords(
       );
     }
 
-    const currentVolume = current.reduce(
-      (total, record) => total + recordVolume(record, units),
-      0,
-    );
+    const currentVolume = sumRecordVolume(current, units);
     const previousSessionVolumes = prior.map((candidate) =>
-      prRecords(candidate)
-        .filter((record) => record.exerciseId === exerciseId)
-        .reduce((total, record) => total + recordVolume(record, units), 0),
+      sumRecordVolume(
+        prRecords(candidate).filter(
+          (record) => record.exerciseId === exerciseId,
+        ),
+        units,
+      ),
     );
     if (
       currentVolume > 0 &&
@@ -379,10 +386,7 @@ export function analyzeProgress(
       exerciseName: records.at(-1)?.exerciseName ?? exerciseId,
       sessionCount: relevant.length,
       workingSets: records.length,
-      totalVolume: records.reduce(
-        (total, record) => total + recordVolume(record, units),
-        0,
-      ),
+      totalVolume: sumRecordVolume(records, units),
       estimatedStrength:
         lastStrength > 0 ? Number(lastStrength.toFixed(1)) : null,
       strengthChangePercent:
@@ -447,11 +451,7 @@ export function analyzeProgress(
         : 0,
     totalWorkingVolume: completed.reduce(
       (total, session) =>
-        total +
-        volumeRecords(session).reduce(
-          (sum, record) => sum + recordVolume(record, units),
-          0,
-        ),
+        total + sumRecordVolume(volumeRecords(session), units),
       0,
     ),
     coverage,
@@ -519,10 +519,7 @@ export function buildSessionSummary(
   return {
     completedSets: records.length,
     exercises: new Set(records.map((record) => record.exerciseId)).size,
-    volume: records.reduce(
-      (total, record) => total + recordVolume(record, units),
-      0,
-    ),
+    volume: sumRecordVolume(records, units),
     durationMinutes: Math.max(
       1,
       Math.round(

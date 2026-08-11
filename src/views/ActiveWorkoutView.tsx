@@ -759,9 +759,9 @@ export function ActiveWorkoutView({
 
       <div className="phase-banner">
         <span className="status-pill">
-          <span /> Phase 8 repair
+          <span /> Phase 8 final repair
         </span>
-        <span className="build-label">WC-P8R2-0811</span>
+        <span className="build-label">WC-P8R3-0811</span>
       </div>
 
       {livePrs.length > 0 && (

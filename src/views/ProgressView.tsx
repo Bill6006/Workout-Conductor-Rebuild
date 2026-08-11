@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Icon } from '../components/Icon';
 import type { AppBundle } from '../domain/models';
-import { analyzeProgress } from '../engine/analytics/analyzeProgress';
+import {
+  analyzeProgress,
+  sumRecordVolume,
+} from '../engine/analytics/analyzeProgress';
 import type { ActiveSession } from '../features/activeWorkout/schema';
 
 function shortDate(value: string) {
@@ -236,10 +239,7 @@ export function ProgressView({
                   </div>
                   <span>
                     {Math.round(
-                      working.reduce(
-                        (sum, record) => sum + record.weight * record.reps,
-                        0,
-                      ),
+                      sumRecordVolume(working, units),
                     ).toLocaleString()}{' '}
                     {units}
                   </span>
@@ -274,7 +274,7 @@ export function ProgressView({
 
       <section className="build-card">
         <p className="eyebrow">Current visible build</p>
-        <strong>WC-P8R2-0811</strong>
+        <strong>WC-P8R3-0811</strong>
         <span>Phase 8 · Data safety, offline readiness, and acceptance</span>
       </section>
     </>

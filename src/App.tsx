@@ -286,7 +286,7 @@ export default function App() {
         </div>
         <span className="loading-pulse" />
         <p>Opening your private training space…</p>
-        <small>WC-P8R2-0811</small>
+        <small>WC-P8R3-0811</small>
       </div>
     );
   }

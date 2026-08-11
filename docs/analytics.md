@@ -10,6 +10,7 @@ Phase 7 derives progress evidence from completed, locally stored workout session
 - Incomplete drafts and unfinished superset rounds never become evidence.
 - Manually corrected completed records remain the source of truth.
 - Each load carries its recorded unit. Mixed lb/kg history is converted to the selected display unit before PR comparisons, volume aggregation, estimated-strength calculations, and Coach targets.
+- Completed-session history cards use the same per-record unit conversion as aggregate volume: every load is converted before multiplication and summation, so cards never relabel a raw numeric total.
 
 ## Measures
 

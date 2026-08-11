@@ -2,11 +2,11 @@
 
 Status: **YELLOW — implementation complete; awaiting Android review**
 
-Release: `0.8.2`
+Release: `0.8.3`
 
-Build marker: `WC-P8R2-0811`
+Build marker: `WC-P8R3-0811`
 
-Repair status: the four findings left by the first hardening retest have implementation and regression-test closures. See the [Phase 8 retest repair report](phase-reports/PHASE_8_RETEST_REPAIR.md). Final approval remains withheld pending a separate adversarial retest.
+Repair status: completed-session history cards now use the same unit-safe volume helper as aggregate analytics, closing the final QA-P8R-011 display path found by independent retest. See the [final unit-display repair report](phase-reports/PHASE_8_RETEST_REPAIR_2.md). Final approval remains withheld pending a separate adversarial retest.
 
 ## Release scope
 
@@ -22,6 +22,7 @@ Repair status: the four findings left by the first hardening retest have impleme
 - durable unit ownership and safe legacy migration across sessions, sets, Coach targets, backups, analytics, PRs, volume, and coaching
 - deterministic set-slot idempotency, a cross-render rapid-action latch, and a 1–200 repetition boundary
 - permanent keyboard-accessible Catalog navigation at mobile and landscape widths
+- shared per-record unit conversion for aggregate analytics, completion summaries, PR volume, and rendered completed-session history cards
 
 ## Data and privacy boundary
 
@@ -29,11 +30,11 @@ No backend, authentication, telemetry, remote media dependency, or real user rec
 
 ## Verification
 
-The local release matrix passed: 133/133 unit and integration tests, 16/16 Android Chromium scenarios, lint, TypeScript, formatting, privacy scanning, production build, and built-asset/PWA verification. Browser coverage includes exact restore and rollback, valid restore, malformed/tampered restore rejection, true offline reload, semantic and keyboard operation, touch targets, responsive widths, and 200% zoom. The deployed commit is recorded in [PROJECT_STATUS.md](../PROJECT_STATUS.md). The acceptance contracts are documented in [data-safety.md](data-safety.md) and [pwa-and-accessibility.md](pwa-and-accessibility.md).
+The local release matrix passed: 136/136 unit and integration tests, 16/16 Android Chromium scenarios, lint, TypeScript, formatting, privacy scanning, production build, and built-asset/PWA verification. Rendered regression coverage proves lb→kg, kg→lb, mixed-record, and lb→kg→lb history-card display. Browser coverage includes exact restore and rollback, valid restore, malformed/tampered restore rejection, true offline reload, semantic and keyboard operation, touch targets, responsive widths, and 200% zoom. The deployed commit is recorded in [PROJECT_STATUS.md](../PROJECT_STATUS.md). The acceptance contracts are documented in [data-safety.md](data-safety.md) and [pwa-and-accessibility.md](pwa-and-accessibility.md).
 
 ## Android review
 
-The remaining gate is independent adversarial retesting plus hands-on review on the user's Android device: install or refresh the PWA, confirm the `WC-P8R2-0811` marker, retest the four open findings, exercise export/preview/rollback with synthetic or disposable data, test an interrupted active workout, and inspect the guide and 200% zoom behavior. No Phase 9 is defined.
+The remaining gate is independent adversarial retesting plus hands-on review on the user's Android device: install or refresh the PWA, confirm the `WC-P8R3-0811` marker, repeat the completed-session mixed-unit sequence and the other twelve findings, exercise export/preview/rollback with synthetic or disposable data, test an interrupted active workout, and inspect the guide and 200% zoom behavior. No Phase 9 is defined.
 
 ## Evidence
 

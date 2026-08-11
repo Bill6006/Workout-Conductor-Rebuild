@@ -5,7 +5,7 @@ async function openDemo(page: Page) {
   await page
     .getByRole('button', { name: 'Explore with a synthetic demo profile' })
     .click();
-  await expect(page.getByText('WC-P8R2-0811')).toBeVisible();
+  await expect(page.getByText('WC-P8R3-0811')).toBeVisible();
 }
 
 async function rapidSetActivation(page: Page) {
@@ -106,12 +106,16 @@ test('QA-P8R-011 preserves an active lb load and converts history after a kg pre
   await page.getByRole('button', { name: 'Progress' }).click();
   await expect(page.getByText(/19\.5 kg × 9/)).toBeVisible();
   await expect(page.getByText(/43 kg × 9/)).toHaveCount(0);
+  const completedSession = page.locator('.history-card').first();
+  await expect(completedSession).toContainText('176 kg');
+  await expect(completedSession).not.toContainText('387 kg');
 
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.getByRole('combobox', { name: 'Units' }).selectOption('lb');
   await page.getByRole('button', { name: 'Save local profile' }).click();
   await page.getByRole('button', { name: 'Progress' }).click();
   await expect(page.getByText(/43 lb × 9/)).toBeVisible();
+  await expect(page.locator('.history-card').first()).toContainText('387 lb');
 });
 
 test('QA-P8R-013 exposes Catalog as a keyboard-reachable primary destination at mobile and landscape widths', async ({

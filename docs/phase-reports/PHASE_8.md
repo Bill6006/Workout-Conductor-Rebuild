@@ -2,11 +2,11 @@
 
 Status: **YELLOW — awaiting Android review**
 
-Build marker: `WC-P8R2-0811`
+Build marker: `WC-P8R3-0811`
 
 Phase 8 completes the planned application. It adds exact and reversible local-data recovery, production offline media coverage, safe service-worker updates, final accessibility and zoom acceptance, and release evidence. The detailed release record is the [Phase 8 cutover report](../cutover-report.md).
 
-The `0.8.2` repair release closes the four findings left by the first hardening retest. Closure evidence is in the [Phase 8 retest repair report](PHASE_8_RETEST_REPAIR.md); the phase remains YELLOW pending a separate retest.
+The `0.8.3` repair release closes the final mixed-unit completed-session history defect found by independent retest. Closure evidence is in the [final unit-display repair report](PHASE_8_RETEST_REPAIR_2.md); the phase remains YELLOW pending another separate retest.
 
 ## Acceptance summary
 

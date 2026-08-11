@@ -16,7 +16,7 @@ test('runs the Phase 8 accepted app on the adaptive coaching foundation and pers
   await expect(
     page.getByRole('heading', { name: 'Ready, Demo.' }),
   ).toBeVisible();
-  await expect(page.getByText('Phase 8 repair')).toBeVisible();
+  await expect(page.getByText('Phase 8 final repair')).toBeVisible();
   await expect(page.getByText('Adaptive Coach', { exact: true })).toBeVisible();
   await page.getByRole('combobox', { name: 'Energy' }).selectOption('2');
   await page.getByRole('button', { name: 'Apply readiness' }).click();
@@ -151,7 +151,7 @@ test('logs, edits, replaces, pauses, and resumes one durable active workout', as
     .click();
   await page.getByRole('button', { name: 'Start workout' }).click();
   await expect(page.getByText('Active workout')).toBeVisible();
-  await expect(page.getByText('WC-P8R2-0811')).toBeVisible();
+  await expect(page.getByText('WC-P8R3-0811')).toBeVisible();
   await expect(page.getByText('Adaptive Coach', { exact: true })).toBeVisible();
 
   await page.getByRole('button', { name: /Open demonstration for/ }).click();
