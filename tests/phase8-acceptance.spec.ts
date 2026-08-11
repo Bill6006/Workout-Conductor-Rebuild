@@ -5,7 +5,7 @@ async function openDemo(page: Page) {
   await page
     .getByRole('button', { name: 'Explore with a synthetic demo profile' })
     .click();
-  await expect(page.getByText('WC-P8H-0811')).toBeVisible();
+  await expect(page.getByText('WC-P8R2-0811')).toBeVisible();
 }
 
 test('exports every protected store, previews exact restore, verifies it, and rolls it back', async ({
@@ -65,6 +65,28 @@ test('exports every protected store, previews exact restore, verifies it, and ro
       name: 'Rollback complete. Pre-import local data restored.',
     }),
   ).toBeVisible();
+
+  const tampered = structuredClone(backup) as {
+    schemaVersion: number;
+    data: {
+      stores: Record<
+        string,
+        Array<{ key: string; value: Record<string, unknown> }>
+      >;
+    };
+  };
+  tampered.data.stores.profiles[0].value.displayName = '';
+  await page.getByLabel('Import backup JSON').setInputFiles({
+    name: 'tampered-backup.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(tampered)),
+  });
+  await expect(
+    page.getByText('Backup record profiles/1 is invalid.'),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('dialog', { name: 'Complete restore preview' }),
+  ).toHaveCount(0);
 });
 
 test('meets the final semantic, keyboard, reduced-motion, and touch-target checks', async ({
@@ -105,7 +127,14 @@ test('meets the final semantic, keyboard, reduced-motion, and touch-target check
   });
   expect(issues).toEqual([]);
 
-  for (const name of ['Today', 'Workout', 'Progress', 'Plan', 'Settings']) {
+  for (const name of [
+    'Today',
+    'Workout',
+    'Catalog',
+    'Progress',
+    'Plan',
+    'Settings',
+  ]) {
     const box = await page
       .getByRole('button', { name, exact: true })
       .boundingBox();
@@ -146,7 +175,7 @@ test('installs a controlled service worker and reloads the app shell offline', a
     await navigator.serviceWorker.ready;
   });
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await expect(page.getByText('WC-P8H-0811')).toBeVisible();
+  await expect(page.getByText('WC-P8R2-0811')).toBeVisible();
   expect(
     await page.evaluate(() => Boolean(navigator.serviceWorker.controller)),
   ).toBe(true);
@@ -154,7 +183,7 @@ test('installs a controlled service worker and reloads the app shell offline', a
   await context.setOffline(true);
   try {
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await expect(page.getByText('WC-P8H-0811')).toBeVisible();
+    await expect(page.getByText('WC-P8R2-0811')).toBeVisible();
   } finally {
     await context.setOffline(false);
   }

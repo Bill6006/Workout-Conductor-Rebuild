@@ -15,6 +15,7 @@ import {
   type AppSettings,
   type Profile,
 } from '../domain/models';
+import { roundedWeight } from '../domain/units';
 import {
   createCompleteBackup,
   downloadBackup,
@@ -101,7 +102,25 @@ export function SettingsView({
 
   function updateSettings(changes: Partial<AppSettings>) {
     setSaveState('idle');
-    setDraft({ ...draft, settings: { ...draft.settings, ...changes } });
+    const nextUnits = changes.units ?? draft.settings.units;
+    const unitsChanged = nextUnits !== draft.settings.units;
+    setDraft({
+      ...draft,
+      profile: unitsChanged
+        ? {
+            ...profile,
+            bodyweight:
+              profile.bodyweight === null
+                ? null
+                : roundedWeight(
+                    profile.bodyweight,
+                    draft.settings.units,
+                    nextUnits,
+                  ),
+          }
+        : profile,
+      settings: { ...draft.settings, ...changes },
+    });
   }
 
   function updateLocation(
@@ -320,7 +339,7 @@ export function SettingsView({
           <span className="status-pill">
             <span /> Profile active
           </span>
-          <span className="build-label">WC-P8H-0811</span>
+          <span className="build-label">WC-P8R2-0811</span>
         </div>
         <h2>{profile.displayName}</h2>
         <p>

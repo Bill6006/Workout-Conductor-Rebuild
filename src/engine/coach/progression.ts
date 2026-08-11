@@ -1,6 +1,7 @@
 import { exerciseById } from '../../catalog/exercises';
 import { progressionFamilyById } from '../../catalog/progressionFamilies';
 import type { AppBundle } from '../../domain/models';
+import { convertWeight } from '../../domain/units';
 import type {
   ActiveSession,
   ActiveSetRecord,
@@ -261,7 +262,16 @@ function progressionCandidates(input: CoachInput): CoachRecommendation[] {
 
   const avgReps = average(latestRecords.map((record) => record.reps));
   const avgRir = average(latestRecords.map((record) => record.rir));
-  const latestLoad = latestRecords.at(-1)?.weight ?? 0;
+  const latestRecord = latestRecords.at(-1);
+  const latestLoad = latestRecord
+    ? Number(
+        convertWeight(
+          latestRecord.weight,
+          latestRecord.weightUnit,
+          bundle.settings.units,
+        ).toFixed(2),
+      )
+    : 0;
   const failures = recent.slice(0, 3).filter(({ records }) => {
     const priorMove = prescription(
       recent.find((item) => item.records === records)?.session ?? session,
@@ -441,7 +451,15 @@ export function coachAnalysis(input: CoachInput): {
       : [];
     if (recent.length >= 3) {
       const loads = recent.map(({ records }) =>
-        Math.max(...records.map((record) => record.weight)),
+        Math.max(
+          ...records.map((record) =>
+            convertWeight(
+              record.weight,
+              record.weightUnit,
+              input.bundle.settings.units,
+            ),
+          ),
+        ),
       );
       const reps = recent.map(({ records }) =>
         average(records.map((record) => record.reps)),

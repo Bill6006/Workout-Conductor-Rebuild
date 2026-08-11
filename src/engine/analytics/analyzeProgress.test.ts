@@ -21,8 +21,20 @@ const workout = generateWorkout(
 );
 const move = blockMoves(workout.blocks[0])[0];
 
-function completed(date: string, weight: number, reps: number, warmup = false) {
-  const session = createActiveSession(workout, date);
+function completed(
+  date: string,
+  weight: number,
+  reps: number,
+  warmup = false,
+  weightUnit: 'lb' | 'kg' = 'lb',
+) {
+  const session = createActiveSession(
+    workout,
+    date,
+    undefined,
+    undefined,
+    weightUnit,
+  );
   return ActiveSessionSchema.parse({
     ...session,
     status: 'completed',
@@ -40,6 +52,7 @@ function completed(date: string, weight: number, reps: number, warmup = false) {
         roundIndex: null,
         moveIndex: 0,
         weight: 999,
+        weightUnit,
         reps: 20,
         rir: 4,
         completedAt: date,
@@ -62,6 +75,7 @@ function completed(date: string, weight: number, reps: number, warmup = false) {
               roundIndex: null,
               moveIndex: 0,
               weight,
+              weightUnit,
               reps,
               rir: 2,
               completedAt: date,
@@ -133,8 +147,8 @@ describe('Phase 7 analytics and personal records', () => {
   });
 
   it('keeps kilogram units in Progress milestone details', () => {
-    const first = completed('2026-08-01T12:00:00.000Z', 35, 8);
-    const heavier = completed('2026-08-08T12:00:00.000Z', 40, 8);
+    const first = completed('2026-08-01T12:00:00.000Z', 35, 8, false, 'kg');
+    const heavier = completed('2026-08-08T12:00:00.000Z', 40, 8, false, 'kg');
     const result = analyzeProgress(
       [first, heavier],
       bundle.profile!,
@@ -147,5 +161,36 @@ describe('Phase 7 analytics and personal records', () => {
     expect(
       result.personalRecords.every((record) => !record.detail.includes('lb')),
     ).toBe(true);
+  });
+
+  it('converts mixed-unit history before PR and volume comparisons', () => {
+    const pounds = completed('2026-08-01T12:00:00.000Z', 100, 8);
+    const kilograms = completed(
+      '2026-08-08T12:00:00.000Z',
+      45.359237,
+      8,
+      false,
+      'kg',
+    );
+    expect(
+      detectSessionPersonalRecords(kilograms, [pounds], 'kg').some(
+        (record) => record.kind === 'weight',
+      ),
+    ).toBe(false);
+
+    const asKg = analyzeProgress(
+      [pounds, kilograms],
+      bundle.profile!,
+      new Date('2026-08-09T12:00:00.000Z'),
+      'kg',
+    );
+    const asLb = analyzeProgress(
+      [pounds, kilograms],
+      bundle.profile!,
+      new Date('2026-08-09T12:00:00.000Z'),
+      'lb',
+    );
+    expect(asKg.totalWorkingVolume).toBeCloseTo(725.75, 1);
+    expect(asLb.totalWorkingVolume).toBeCloseTo(1600, 1);
   });
 });

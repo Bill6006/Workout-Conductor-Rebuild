@@ -11,7 +11,7 @@ async function startSyntheticWorkout(page: Page) {
   await page
     .getByRole('button', { name: 'Explore with a synthetic demo profile' })
     .click();
-  await expect(page.getByText('Phase 8 hardening')).toBeVisible();
+  await expect(page.getByText('Phase 8 repair')).toBeVisible();
 }
 
 async function saveViewport(page: Page, filename: string) {

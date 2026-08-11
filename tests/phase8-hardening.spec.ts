@@ -5,7 +5,7 @@ async function openDemo(page: import('@playwright/test').Page) {
   await page
     .getByRole('button', { name: 'Explore with a synthetic demo profile' })
     .click();
-  await expect(page.getByText('WC-P8H-0811')).toBeVisible();
+  await expect(page.getByText('WC-P8R2-0811')).toBeVisible();
 }
 
 test('QA-P8-002/003/004/005/009/010 hardens readiness and active logging', async ({
@@ -79,7 +79,7 @@ test('QA-P8-001/007 gives actionable onboarding validation and preserves decimal
   await expect(bodyweight).toBeFocused();
   await bodyweight.fill('182.5');
   await page.getByRole('button', { name: 'Finish setup' }).click();
-  await expect(page.getByText('WC-P8H-0811')).toBeVisible();
+  await expect(page.getByText('WC-P8R2-0811')).toBeVisible();
 
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.getByRole('textbox', { name: 'Profile name' }).fill('Decimal QA');

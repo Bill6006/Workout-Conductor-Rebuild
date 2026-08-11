@@ -2,11 +2,11 @@
 
 Status: **YELLOW — implementation complete; awaiting Android review**
 
-Release: `0.8.1`
+Release: `0.8.2`
 
-Build marker: `WC-P8H-0811`
+Build marker: `WC-P8R2-0811`
 
-Hardening status: all ten findings from the independent adversarial QA pass have implementation and regression-test closures. See the [Phase 8 hardening report](phase-reports/PHASE_8_HARDENING.md). Final approval remains withheld pending a separate adversarial retest.
+Repair status: the four findings left by the first hardening retest have implementation and regression-test closures. See the [Phase 8 retest repair report](phase-reports/PHASE_8_RETEST_REPAIR.md). Final approval remains withheld pending a separate adversarial retest.
 
 ## Release scope
 
@@ -19,6 +19,9 @@ Hardening status: all ten findings from the independent adversarial QA pass have
 - project-owned offline demonstrations for every production-enabled exercise
 - keyboard, naming, landmark, target-size, reduced-motion, responsive, and 200% zoom acceptance
 - final Android-sized Today, data-safety, and exercise-guide evidence
+- durable unit ownership and safe legacy migration across sessions, sets, Coach targets, backups, analytics, PRs, volume, and coaching
+- deterministic set-slot idempotency, a cross-render rapid-action latch, and a 1–200 repetition boundary
+- permanent keyboard-accessible Catalog navigation at mobile and landscape widths
 
 ## Data and privacy boundary
 
@@ -26,11 +29,11 @@ No backend, authentication, telemetry, remote media dependency, or real user rec
 
 ## Verification
 
-Final command results and the deployed commit are recorded in [PROJECT_STATUS.md](../PROJECT_STATUS.md) after cutover. The acceptance contracts are documented in [data-safety.md](data-safety.md) and [pwa-and-accessibility.md](pwa-and-accessibility.md).
+The local release matrix passed: 133/133 unit and integration tests, 16/16 Android Chromium scenarios, lint, TypeScript, formatting, privacy scanning, production build, and built-asset/PWA verification. Browser coverage includes exact restore and rollback, valid restore, malformed/tampered restore rejection, true offline reload, semantic and keyboard operation, touch targets, responsive widths, and 200% zoom. The deployed commit is recorded in [PROJECT_STATUS.md](../PROJECT_STATUS.md). The acceptance contracts are documented in [data-safety.md](data-safety.md) and [pwa-and-accessibility.md](pwa-and-accessibility.md).
 
 ## Android review
 
-The remaining gate is independent adversarial retesting plus hands-on review on the user's Android device: install or refresh the PWA, confirm the `WC-P8H-0811` marker, exercise export/preview/rollback with synthetic or disposable data, test an interrupted active workout, and inspect the guide and 200% zoom behavior. No Phase 9 is defined.
+The remaining gate is independent adversarial retesting plus hands-on review on the user's Android device: install or refresh the PWA, confirm the `WC-P8R2-0811` marker, retest the four open findings, exercise export/preview/rollback with synthetic or disposable data, test an interrupted active workout, and inspect the guide and 200% zoom behavior. No Phase 9 is defined.
 
 ## Evidence
 

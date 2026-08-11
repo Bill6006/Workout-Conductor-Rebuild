@@ -13,6 +13,7 @@ import { loadSettings } from './settings';
 import {
   ActiveSessionSchema,
   ExerciseNoteSchema,
+  migrateActiveSession,
   type ActiveSession,
   type ExerciseNote,
 } from '../features/activeWorkout/schema';
@@ -24,6 +25,7 @@ import { CustomExerciseSchema, type CustomExercise } from '../catalog/schema';
 import {
   CoachTargetSchema,
   CustomMediaBlobSchema,
+  migrateCoachTarget,
   type CoachTarget,
   type CustomMediaBlob,
 } from './userContent';
@@ -136,6 +138,17 @@ export async function getAllRecords<T>(
   );
   await completed;
   return values.map((value) => schema.parse(value));
+}
+
+async function getAllUnknownRecords(storeName: StoreName): Promise<unknown[]> {
+  const database = await openDatabase();
+  const transaction = database.transaction(storeName, 'readonly');
+  const completed = transactionComplete(transaction);
+  const values = await requestResult(
+    transaction.objectStore(storeName).getAll(),
+  );
+  await completed;
+  return values;
 }
 
 async function performVerifiedWrite<T extends { id: string }>(
@@ -339,11 +352,42 @@ export async function saveActiveSessionVerified(
   );
 }
 
-export async function loadActiveSession(): Promise<ActiveSession | null> {
-  const sessions = await getAllRecords<ActiveSession>(
-    storeNames.activeSessions,
-    ActiveSessionSchema,
+async function loadSessionsWithMigration(
+  fallbackUnit: 'lb' | 'kg',
+): Promise<ActiveSession[]> {
+  const stored = await getAllUnknownRecords(storeNames.activeSessions);
+  const sessions = stored.map((value) =>
+    migrateActiveSession(value, fallbackUnit),
   );
+  await Promise.all(
+    sessions.map((session, index) =>
+      JSON.stringify(session) === JSON.stringify(stored[index])
+        ? Promise.resolve(session)
+        : saveActiveSessionVerified(session),
+    ),
+  );
+  return sessions;
+}
+
+export async function migrateWeightBearingRecords(
+  fallbackUnit: 'lb' | 'kg',
+): Promise<void> {
+  await loadSessionsWithMigration(fallbackUnit);
+  const storedTargets = await getAllUnknownRecords(storeNames.coachTargets);
+  await Promise.all(
+    storedTargets.map((value) => {
+      const target = migrateCoachTarget(value, fallbackUnit);
+      return JSON.stringify(target) === JSON.stringify(value)
+        ? Promise.resolve(target)
+        : saveCoachTargetVerified(target);
+    }),
+  );
+}
+
+export async function loadActiveSession(
+  fallbackUnit: 'lb' | 'kg' = 'lb',
+): Promise<ActiveSession | null> {
+  const sessions = await loadSessionsWithMigration(fallbackUnit);
   return (
     sessions
       .filter((session) => session.status !== 'completed')
@@ -353,11 +397,10 @@ export async function loadActiveSession(): Promise<ActiveSession | null> {
   );
 }
 
-export async function loadSessionHistory(): Promise<ActiveSession[]> {
-  const sessions = await getAllRecords<ActiveSession>(
-    storeNames.activeSessions,
-    ActiveSessionSchema,
-  );
+export async function loadSessionHistory(
+  fallbackUnit: 'lb' | 'kg' = 'lb',
+): Promise<ActiveSession[]> {
+  const sessions = await loadSessionsWithMigration(fallbackUnit);
   return sessions.sort((first, second) =>
     second.updatedAt.localeCompare(first.updatedAt),
   );

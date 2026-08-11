@@ -279,6 +279,11 @@ export function ActiveWorkoutView({
           : `${slot.kind === 'warmup' ? 'Warm-up' : 'Set'} saved and verified locally in ${responseMilliseconds.toFixed(1)} ms.`,
       );
     } finally {
+      // Keep the shared action boundary latched across the browser's complete
+      // double-click window. The next slot can render immediately after the
+      // verified write, so releasing here synchronously would let the second
+      // click land on a brand-new enabled form.
+      await new Promise((resolve) => window.setTimeout(resolve, 450));
       setSubmissionLock.current = false;
       setSetSubmissionPending(false);
     }
@@ -568,7 +573,7 @@ export function ActiveWorkoutView({
           </div>
           <div>
             <strong>{Math.round(completed.volume).toLocaleString()}</strong>
-            <span>volume</span>
+            <span>volume ({session.weightUnit})</span>
           </div>
         </div>
         <div className="completion-flags">
@@ -754,9 +759,9 @@ export function ActiveWorkoutView({
 
       <div className="phase-banner">
         <span className="status-pill">
-          <span /> Phase 8 hardening
+          <span /> Phase 8 repair
         </span>
-        <span className="build-label">WC-P8H-0811</span>
+        <span className="build-label">WC-P8R2-0811</span>
       </div>
 
       {livePrs.length > 0 && (
@@ -894,7 +899,7 @@ export function ActiveWorkoutView({
               {session.records
                 .filter((record) => record.exerciseId === move.exerciseId)
                 .at(-1)
-                ? `${session.records.filter((record) => record.exerciseId === move.exerciseId).at(-1)?.weight} ${bundle.settings.units} × ${session.records.filter((record) => record.exerciseId === move.exerciseId).at(-1)?.reps}`
+                ? `${session.records.filter((record) => record.exerciseId === move.exerciseId).at(-1)?.weight} ${session.records.filter((record) => record.exerciseId === move.exerciseId).at(-1)?.weightUnit} × ${session.records.filter((record) => record.exerciseId === move.exerciseId).at(-1)?.reps}`
                 : 'No completed set yet'}
             </p>
           </div>
@@ -954,7 +959,7 @@ export function ActiveWorkoutView({
           }
           targetReps={slot.targetReps}
           targetRir={slot.targetRir}
-          units={bundle.settings.units}
+          units={session.weightUnit}
           initialValues={initialSetValues(session.records, move, slot)}
           disabled={session.status !== 'active' || setSubmissionPending}
           onSubmit={(values, responseMilliseconds) =>
@@ -1039,8 +1044,9 @@ export function ActiveWorkoutView({
                     <span>{record.exerciseName}</span>
                   </div>
                   <b>
-                    {record.weight} {bundle.settings.units} × {record.reps} ·{' '}
-                    {record.rir} RIR
+                    {record.legacyInvalidReps
+                      ? `Legacy ${record.legacyInvalidReps}-rep entry excluded — edit to restore evidence`
+                      : `${record.weight} ${record.weightUnit} × ${record.reps} · ${record.rir} RIR`}
                   </b>
                   <button
                     type="button"
@@ -1061,7 +1067,7 @@ export function ActiveWorkoutView({
                     setLabel={`Edit ${record.kind} set`}
                     targetReps={String(record.reps)}
                     targetRir={record.rir}
-                    units={bundle.settings.units}
+                    units={record.weightUnit}
                     initialValues={record}
                     submitLabel="Save correction"
                     onSubmit={(values) => {

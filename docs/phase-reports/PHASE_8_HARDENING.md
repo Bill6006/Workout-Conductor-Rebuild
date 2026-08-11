@@ -8,6 +8,8 @@ Build marker: `WC-P8H-0811`
 
 Source handoff: `C:\Users\tyree\Downloads\Workout_Conductor_Phase_8_Adversarial_QA_Handoff.md`
 
+Historical note: the first retest later found QA-P8-005 partially open plus three new findings. Their follow-up implementation closure is recorded in [PHASE_8_RETEST_REPAIR.md](PHASE_8_RETEST_REPAIR.md). This report remains the record of the initial `0.8.1` pass.
+
 ## Finding closure
 
 | Finding   | Severity | Resolution                                                                                                                                                          | Regression evidence                                                           |

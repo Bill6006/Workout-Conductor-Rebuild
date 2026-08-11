@@ -100,7 +100,57 @@ describe('Phase 5 durable active workout session', () => {
     const slot = nextSetSlot(session)!;
     expect(() =>
       logSet(session, slot, { weight: 40, reps: 0, rir: 2 }, startedAt),
-    ).toThrow('at least one repetition');
+    ).toThrow('1–200 whole repetitions');
+  });
+
+  it('rejects extreme repetitions at log and correction boundaries', () => {
+    const session = createActiveSession(generated(), startedAt);
+    const slot = nextSetSlot(session)!;
+    expect(() =>
+      logSet(session, slot, { weight: 40, reps: 999, rir: 2 }, startedAt),
+    ).toThrow('1–200 whole repetitions');
+
+    const completed = logSet(
+      session,
+      slot,
+      { weight: 40, reps: 8, rir: 2 },
+      startedAt,
+    );
+    expect(() =>
+      editSet(completed, completed.records[0].id, {
+        weight: 40,
+        reps: 999,
+        rir: 2,
+      }),
+    ).toThrow('1–200 whole reps');
+  });
+
+  it('makes one logical set slot idempotent at the session boundary', () => {
+    const session = createActiveSession(generated(), startedAt);
+    const slot = nextSetSlot(session)!;
+    const first = logSet(
+      session,
+      slot,
+      { weight: 40, reps: 8, rir: 2 },
+      startedAt,
+    );
+    const replay = logSet(
+      first,
+      slot,
+      { weight: 40, reps: 8, rir: 2 },
+      '2026-08-10T18:00:00.050Z',
+    );
+    expect(replay.records).toHaveLength(1);
+    expect(replay.records[0].id).toBe(first.records[0].id);
+    expect(() =>
+      ActiveSessionSchema.parse({
+        ...first,
+        records: [
+          ...first.records,
+          { ...first.records[0], id: 'forged-duplicate' },
+        ],
+      }),
+    ).toThrow('same set slot');
   });
 
   it('resets replacement values and uses the warm-up slot RIR', () => {

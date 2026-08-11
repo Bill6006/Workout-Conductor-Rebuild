@@ -16,7 +16,7 @@ This is intentionally better than a button grid for a fatigued, one-handed user:
 
 The focused session-state benchmark keeps a normal set mutation below 100 ms. The UI reports only after an optimistic local update and verified IndexedDB read-back.
 
-Completed sets require at least one repetition at both the interaction and persisted-schema boundaries. Submission locks prevent rapid repeated activation from advancing two sets. Logger defaults are tied to the exact exercise and slot, so a replacement cannot inherit stale values and warm-ups use their own RIR target.
+Completed sets require 1–200 whole repetitions at the interaction, edit, persisted-schema, and import boundaries. Each logical slot has a deterministic identity, the session schema rejects duplicate slots, stale submissions are no-ops, and the shared action latch stays closed while the next form renders so a double-click cannot advance two sets. Logger defaults are tied to the exact exercise and slot, so a replacement cannot inherit stale values and warm-ups use their own RIR target.
 
 ## Durable session model
 
@@ -24,7 +24,7 @@ An active session stores the immutable generated prescription plus append-only s
 
 The verified-write layer also detects legacy out-of-line-key stores that may exist from an older app on the same Pages origin. It supplies each record's stable ID explicitly for those stores, preserving the user's existing browser data instead of deleting or rebuilding the database.
 
-Each set record carries its block, prescription, exercise, kind, set index, superset round, move index, load, reps, RIR, timestamps, and accounting flags. Warm-ups explicitly set progression, PR, and working-volume flags to false.
+Each set record carries its block, prescription, exercise, kind, set index, superset round, move index, load, recorded unit, reps, RIR, timestamps, and accounting flags. The session also owns its recorded unit, so changing preferences cannot silently reinterpret an unfinished workout. Warm-ups explicitly set progression, PR, and working-volume flags to false. Legacy repetitions above the current safety boundary retain their original value as recoverable migration metadata and remain excluded from evidence until corrected.
 
 ## Rest and resume
 

@@ -48,6 +48,7 @@ function historicalSession(
         roundIndex: null,
         moveIndex: 0,
         weight: 100,
+        weightUnit: 'lb',
         reps,
         rir,
         tempo: '3-1-1',
@@ -152,6 +153,7 @@ describe('Phase 6 progression and Adaptive Coach', () => {
       roundIndex: round,
       moveIndex,
       weight: 40,
+      weightUnit: 'lb',
       reps: 10,
       rir: 2,
       completedAt: '2026-08-10T18:05:00.000Z',
@@ -179,5 +181,34 @@ describe('Phase 6 progression and Adaptive Coach', () => {
     });
     expect(result.priority).toBe('safety-form');
     expect(result.action?.kind).toBe('open-alternatives');
+  });
+
+  it('converts historical loads into the preferred unit for coach targets', () => {
+    const kgBundle = {
+      ...bundle,
+      settings: { ...bundle.settings, units: 'kg' as const },
+    };
+    const current = createActiveSession(
+      workout,
+      '2026-08-10T18:00:00.000Z',
+      undefined,
+      undefined,
+      'kg',
+    );
+    const move = blockMoves(workout.blocks[0])[0];
+    const history = [
+      historicalSession(
+        '2026-08-09T18:00:00.000Z',
+        move.repRange.min,
+        move.targetRir,
+      ),
+    ];
+    const result = coachRecommendation({
+      session: current,
+      history,
+      bundle: kgBundle,
+      currentExerciseId: move.exerciseId,
+    });
+    expect(result.nextTarget).toContain('45.36 kg');
   });
 });

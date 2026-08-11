@@ -8,7 +8,7 @@ import {
 } from '../domain/models';
 import { CustomExerciseSchema } from '../catalog/schema';
 import {
-  ActiveSessionSchema,
+  ActiveSessionImportSchema,
   ExerciseNoteSchema,
 } from '../features/activeWorkout/schema';
 import { SavedWorkoutSchema } from '../features/savedWorkouts/schema';
@@ -23,7 +23,7 @@ import {
   type StoreName,
 } from './database';
 import { SETTINGS_STORAGE_KEY } from './settings';
-import { CoachTargetSchema, CustomMediaBlobSchema } from './userContent';
+import { CoachTargetImportSchema, CustomMediaBlobSchema } from './userContent';
 
 const RawStoreRecordSchema = z.looseObject({
   key: z.union([z.string(), z.number()]),
@@ -61,12 +61,12 @@ const recordSchemas: Partial<Record<StoreName, z.ZodType>> = {
   [storeNames.profiles]: ProfileSchema,
   [storeNames.equipmentProfiles]: EquipmentProfileSchema,
   [storeNames.locations]: LocationProfileSchema,
-  [storeNames.activeSessions]: ActiveSessionSchema,
+  [storeNames.activeSessions]: ActiveSessionImportSchema,
   [storeNames.exerciseNotes]: ExerciseNoteSchema,
   [storeNames.savedWorkouts]: SavedWorkoutSchema,
   [storeNames.customExercises]: CustomExerciseSchema,
   [storeNames.customMedia]: CustomMediaBlobSchema,
-  [storeNames.coachTargets]: CoachTargetSchema,
+  [storeNames.coachTargets]: CoachTargetImportSchema,
 };
 
 function parseJson(text: string): unknown {

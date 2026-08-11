@@ -10,11 +10,11 @@ https://bill6006.github.io/Workout-Conductor-Rebuild/
 
 Phase 8 completes the planned application with exact and reversible local-data recovery, production offline exercise demonstrations, safe PWA updates, accessibility and 200% zoom acceptance, and final release polish over the deterministic coaching, workout-execution, and evidence-led progress foundation.
 
-The current `0.8.1` hardening build (`WC-P8H-0811`) resolves the ten findings from the first independent adversarial QA pass and remains YELLOW until a separate retest confirms them closed.
+The current `0.8.2` repair build (`WC-P8R2-0811`) closes the four findings left by the first hardening retest: working-set click-through, unit-safe history, extreme repetition rejection, and Catalog reachability. It remains YELLOW until a separate retest confirms them closed.
 
 Complete backups cover every protected IndexedDB store and local setting, preserve unknown fields, and require a no-change preview plus explicit confirmation before restore. Critical saves and restores are read back and verified, failed restores roll back automatically, and all user data remains browser-local.
 
-See the [Phase 8 cutover report](docs/cutover-report.md), [hardening closure report](docs/phase-reports/PHASE_8_HARDENING.md), [data-safety contract](docs/data-safety.md), and [PWA/accessibility acceptance](docs/pwa-and-accessibility.md).
+See the [Phase 8 cutover report](docs/cutover-report.md), [retest repair report](docs/phase-reports/PHASE_8_RETEST_REPAIR.md), [data-safety contract](docs/data-safety.md), and [PWA/accessibility acceptance](docs/pwa-and-accessibility.md).
 
 ## Local development
 

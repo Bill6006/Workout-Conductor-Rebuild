@@ -228,7 +228,7 @@ export function Onboarding({ onComplete, onCancel }: OnboardingProps) {
             </p>
             <h1>{stepTitles[step]}</h1>
           </div>
-          <span className="build-label">WC-P8H-0811</span>
+          <span className="build-label">WC-P8R2-0811</span>
         </header>
         <div
           className="setup-progress"

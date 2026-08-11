@@ -397,7 +397,7 @@
   bottom: 0;
   left: 0;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   width: min(100%, 520px);
   min-height: calc(72px + env(safe-area-inset-bottom));
   margin: 0 auto;
@@ -419,7 +419,7 @@
   border-radius: 14px;
   color: #737a75;
   background: transparent;
-  font-size: 0.59rem;
+  font-size: 0.54rem;
   font-weight: 700;
   cursor: pointer;
   transition:

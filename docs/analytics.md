@@ -9,6 +9,7 @@ Phase 7 derives progress evidence from completed, locally stored workout session
 - Warm-ups and optional drop sets are excluded from normal PR and working-volume calculations.
 - Incomplete drafts and unfinished superset rounds never become evidence.
 - Manually corrected completed records remain the source of truth.
+- Each load carries its recorded unit. Mixed lb/kg history is converted to the selected display unit before PR comparisons, volume aggregation, estimated-strength calculations, and Coach targets.
 
 ## Measures
 

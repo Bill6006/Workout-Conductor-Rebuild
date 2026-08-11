@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 export type IconName =
   | 'today'
   | 'workout'
+  | 'catalog'
   | 'progress'
   | 'plan'
   | 'settings'
@@ -44,6 +45,12 @@ export function Icon({ name, size = 22 }: { name: IconName; size?: number }) {
       <>
         <path d="M4 9v6M7 6.5v11M17 6.5v11M20 9v6M7 12h10" />
         <path d="M2.5 10.5v3M21.5 10.5v3" />
+      </>
+    ),
+    catalog: (
+      <>
+        <rect x="3.5" y="4" width="17" height="16" rx="2.5" />
+        <path d="M8.5 4v16M8.5 9h12M8.5 14h12" />
       </>
     ),
     progress: (

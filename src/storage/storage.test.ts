@@ -6,7 +6,11 @@ import {
   generateWorkout,
   generationInputFromBundle,
 } from '../engine/workoutGenerator/generateWorkout';
-import { createActiveSession } from '../features/activeWorkout/session';
+import {
+  createActiveSession,
+  logSet,
+  nextSetSlot,
+} from '../features/activeWorkout/session';
 import { createSavedWorkout } from '../features/savedWorkouts/schema';
 import {
   CompleteBackupSchema,
@@ -24,6 +28,8 @@ import {
   loadBundle,
   loadExerciseNotes,
   loadSavedWorkouts,
+  loadSessionHistory,
+  migrateWeightBearingRecords,
   readRawStores,
   replaceRawStores,
   saveActiveSessionVerified,
@@ -207,6 +213,7 @@ describe('local-first storage and data safety', () => {
         id: 'target-pull-up',
         exerciseId: 'pull-up',
         targetWeight: 40,
+        weightUnit: 'lb',
         targetReps: 9,
         targetRir: 2,
         rationale: 'Synthetic next-session target.',
@@ -269,6 +276,188 @@ describe('local-first storage and data safety', () => {
         updatedAt: '2026-08-10T18:01:00.000Z',
       },
     ]);
+  });
+
+  it('migrates legacy lb sessions once without relabeling them after unit changes', async () => {
+    const demo = createDemoBundle();
+    const workout = generateWorkout(
+      generationInputFromBundle(demo, '15', {
+        date: '2026-08-10T18:00:00.000Z',
+      }),
+    );
+    const session = createActiveSession(
+      workout,
+      '2026-08-10T18:00:00.000Z',
+      undefined,
+      undefined,
+      'lb',
+    );
+    const recorded = logSet(
+      session,
+      nextSetSlot(session)!,
+      { weight: 40, reps: 8, rir: 2 },
+      '2026-08-10T18:01:00.000Z',
+    );
+    const legacy = structuredClone(recorded) as unknown as Record<
+      string,
+      unknown
+    >;
+    legacy.schemaVersion = 1;
+    delete legacy.weightUnit;
+    for (const record of legacy.records as Array<Record<string, unknown>>) {
+      delete record.weightUnit;
+    }
+    await replaceRawStores(
+      {
+        [storeNames.activeSessions]: [{ key: recorded.id, value: legacy }],
+      },
+      [storeNames.activeSessions],
+    );
+
+    const migrated = (await loadSessionHistory('lb'))[0];
+    expect(migrated).toMatchObject({ schemaVersion: 2, weightUnit: 'lb' });
+    expect(migrated.records[0]).toMatchObject({
+      weight: 40,
+      weightUnit: 'lb',
+    });
+    const afterPreferenceChange = (await loadSessionHistory('kg'))[0];
+    expect(afterPreferenceChange.records[0]).toMatchObject({
+      weight: 40,
+      weightUnit: 'lb',
+    });
+  });
+
+  it('migrates kg sessions and coach targets from a valid legacy backup', async () => {
+    const demo = createDemoBundle();
+    const kgBundle = {
+      ...demo,
+      settings: { ...demo.settings, units: 'kg' as const },
+    };
+    saveSettingsVerified(kgBundle.settings);
+    await saveBundleVerified(kgBundle);
+    const workout = generateWorkout(
+      generationInputFromBundle(kgBundle, '15', {
+        date: '2026-08-11T18:00:00.000Z',
+      }),
+    );
+    const session = createActiveSession(
+      workout,
+      '2026-08-11T18:00:00.000Z',
+      undefined,
+      undefined,
+      'kg',
+    );
+    const recorded = logSet(
+      session,
+      nextSetSlot(session)!,
+      { weight: 40, reps: 8, rir: 2 },
+      '2026-08-11T18:01:00.000Z',
+    );
+    await saveActiveSessionVerified(recorded);
+    await saveCoachTargetVerified({
+      id: 'legacy-target',
+      exerciseId: recorded.records[0].exerciseId,
+      targetWeight: 42.5,
+      weightUnit: 'kg',
+      targetReps: 9,
+      targetRir: 2,
+      rationale: 'Synthetic unit migration target.',
+      updatedAt: '2026-08-11T18:02:00.000Z',
+    });
+    const backup = structuredClone(await createCompleteBackup());
+    const sessionValue = backup.data.stores[storeNames.activeSessions][0]
+      .value as Record<string, unknown>;
+    sessionValue.schemaVersion = 1;
+    delete sessionValue.weightUnit;
+    for (const record of sessionValue.records as Array<
+      Record<string, unknown>
+    >) {
+      delete record.weightUnit;
+    }
+    const targetValue = backup.data.stores[storeNames.coachTargets][0]
+      .value as Record<string, unknown>;
+    delete targetValue.weightUnit;
+
+    const text = JSON.stringify(backup);
+    expect(previewBackup(text)).toMatchObject({ kind: 'complete' });
+    await restoreBackup(text);
+    await migrateWeightBearingRecords('kg');
+    const migratedSession = (await loadSessionHistory('lb'))[0];
+    expect(migratedSession.records[0]).toMatchObject({
+      weight: 40,
+      weightUnit: 'kg',
+    });
+    const raw = await readRawStores();
+    expect(raw[storeNames.coachTargets][0]?.value).toMatchObject({
+      targetWeight: 42.5,
+      weightUnit: 'kg',
+    });
+  });
+
+  it('rejects extreme repetitions in a complete restore before storage changes', async () => {
+    const demo = createDemoBundle();
+    saveSettingsVerified(demo.settings);
+    await saveBundleVerified(demo);
+    const workout = generateWorkout(
+      generationInputFromBundle(demo, '15', {
+        date: '2026-08-11T18:00:00.000Z',
+      }),
+    );
+    const session = createActiveSession(workout, '2026-08-11T18:00:00.000Z');
+    const recorded = logSet(session, nextSetSlot(session)!, {
+      weight: 40,
+      reps: 8,
+      rir: 2,
+    });
+    await saveActiveSessionVerified(recorded);
+    const backup = structuredClone(await createCompleteBackup());
+    const sessionValue = backup.data.stores[storeNames.activeSessions][0]
+      .value as Record<string, unknown>;
+    (sessionValue.records as Array<Record<string, unknown>>)[0].reps = 999;
+    expect(() => previewBackup(JSON.stringify(backup))).toThrow(
+      'activeSessions/1 is invalid',
+    );
+    expect((await loadSessionHistory('lb'))[0].records[0].reps).toBe(8);
+  });
+
+  it('recovers an on-device legacy extreme set without feeding evidence', async () => {
+    const demo = createDemoBundle();
+    const workout = generateWorkout(
+      generationInputFromBundle(demo, '15', {
+        date: '2026-08-11T18:00:00.000Z',
+      }),
+    );
+    const session = createActiveSession(workout, '2026-08-11T18:00:00.000Z');
+    const recorded = logSet(session, nextSetSlot(session)!, {
+      weight: 40,
+      reps: 8,
+      rir: 2,
+    });
+    const legacy = structuredClone(recorded) as unknown as Record<
+      string,
+      unknown
+    >;
+    legacy.schemaVersion = 1;
+    delete legacy.weightUnit;
+    const record = (legacy.records as Array<Record<string, unknown>>)[0];
+    delete record.weightUnit;
+    delete record.legacyInvalidReps;
+    record.reps = 999;
+    await replaceRawStores(
+      {
+        [storeNames.activeSessions]: [{ key: recorded.id, value: legacy }],
+      },
+      [storeNames.activeSessions],
+    );
+
+    const migrated = (await loadSessionHistory('lb'))[0].records[0];
+    expect(migrated).toMatchObject({
+      reps: 200,
+      legacyInvalidReps: 999,
+      countsTowardProgression: false,
+      countsTowardPr: false,
+      countsTowardWorkingVolume: false,
+    });
   });
 
   it('writes and reads back a saved workout without adding synthetic history', async () => {

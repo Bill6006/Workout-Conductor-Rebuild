@@ -5,6 +5,7 @@ import type {
 } from '../../engine/workoutGenerator/schema';
 import {
   ActiveSessionSchema,
+  MAX_SET_REPS,
   type ActiveSession,
   type ActiveSetRecord,
   type ReadinessCheck,
@@ -25,7 +26,8 @@ export function initialSetValues(
       (record) =>
         record.prescriptionId === move.prescriptionId &&
         record.exerciseId === move.exerciseId &&
-        record.kind === slot.kind,
+        record.kind === slot.kind &&
+        record.legacyInvalidReps === null,
     )
     .at(-1);
   const numericTargetReps = Number(slot.targetReps);
@@ -49,11 +51,13 @@ export function createActiveSession(
   now: Date | string = new Date(),
   readiness?: ReadinessCheck,
   trainingContext?: ActiveSession['trainingContext'],
+  weightUnit: ActiveSession['weightUnit'] = 'lb',
 ): ActiveSession {
   const timestamp = sessionTimestamp(now);
   return ActiveSessionSchema.parse({
     id: `session-${workout.id}-${timestamp}`,
-    schemaVersion: 1,
+    schemaVersion: 2,
+    weightUnit,
     workout,
     status: 'active',
     startedAt: timestamp,
@@ -280,12 +284,23 @@ export function logSet(
   if (session.status !== 'active') {
     throw new Error('Resume the workout before logging a set.');
   }
-  if (values.reps < 1 || !Number.isInteger(values.reps)) {
-    throw new Error('A completed set requires at least one repetition.');
+  if (
+    values.reps < 1 ||
+    values.reps > MAX_SET_REPS ||
+    !Number.isInteger(values.reps)
+  ) {
+    throw new Error(
+      `A completed set requires 1–${MAX_SET_REPS} whole repetitions.`,
+    );
   }
+  const currentSlot = nextSetSlot(session);
+  const requestedKey = slotKey(slot);
+  if (!currentSlot || slotKey(currentSlot) !== requestedKey) return session;
+  if (session.records.some((record) => recordSlotKey(record) === requestedKey))
+    return session;
   const timestamp = sessionTimestamp(now);
   const record: ActiveSetRecord = {
-    id: `${session.id}:${slot.prescriptionId}:${slot.kind}:${slot.setIndex}:${timestamp}`,
+    id: `${session.id}:${requestedKey}`,
     sessionId: session.id,
     blockId: slot.blockId,
     prescriptionId: slot.prescriptionId,
@@ -296,7 +311,9 @@ export function logSet(
     roundIndex: slot.roundIndex,
     moveIndex: slot.moveIndex,
     weight: values.weight,
+    weightUnit: session.weightUnit,
     reps: values.reps,
+    legacyInvalidReps: null,
     rir: values.rir,
     tempo: 'controlled',
     restSecondsTaken: session.lastRestStartedAt
@@ -338,6 +355,13 @@ export function editSet(
   now: Date | string = new Date(),
 ): ActiveSession {
   const timestamp = sessionTimestamp(now);
+  if (
+    values.reps < 1 ||
+    values.reps > MAX_SET_REPS ||
+    !Number.isInteger(values.reps)
+  ) {
+    throw new Error(`A corrected set requires 1–${MAX_SET_REPS} whole reps.`);
+  }
   if (!session.records.some((record) => record.id === recordId)) {
     throw new Error('Completed set not found.');
   }
@@ -345,11 +369,41 @@ export function editSet(
     ...session,
     records: session.records.map((record) =>
       record.id === recordId
-        ? { ...record, ...values, editedAt: timestamp }
+        ? {
+            ...record,
+            ...values,
+            legacyInvalidReps: null,
+            countsTowardProgression: record.kind !== 'warmup',
+            countsTowardPr: record.kind !== 'warmup',
+            countsTowardWorkingVolume: record.kind !== 'warmup',
+            editedAt: timestamp,
+          }
         : record,
     ),
     updatedAt: timestamp,
   });
+}
+
+function slotKey(slot: SetSlot): string {
+  return [
+    slot.blockId,
+    slot.prescriptionId,
+    slot.kind,
+    slot.setIndex,
+    slot.roundIndex ?? 'none',
+    slot.moveIndex,
+  ].join(':');
+}
+
+function recordSlotKey(record: ActiveSetRecord): string {
+  return [
+    record.blockId,
+    record.prescriptionId,
+    record.kind,
+    record.setIndex,
+    record.roundIndex ?? 'none',
+    record.moveIndex,
+  ].join(':');
 }
 
 export function undoLastSet(

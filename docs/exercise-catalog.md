@@ -16,4 +16,6 @@ Each exercise includes:
 
 Separate validated registries own muscles, movement patterns, equipment, progression families, and media. Cross-reference validation prevents missing substitutions and media IDs.
 
+Catalog is a permanent primary-navigation destination alongside Today, Workout, Progress, Plan, and Settings. Its navigation control retains keyboard activation, active-page semantics, 44-pixel touch sizing, and responsive coverage at mobile and landscape widths, including while a workout is active.
+
 Custom exercises use a separate strict schema so user-owned instructions and local media can be backed up later without blending them into the licensed production catalog. Custom media is capped at 50 MB per item and references durable local blobs rather than remote URLs.

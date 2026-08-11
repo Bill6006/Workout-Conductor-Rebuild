@@ -45,8 +45,8 @@ describe('Phase 8 final acceptance', () => {
   it('saves a synthetic demo and renders the useful Today dashboard', async () => {
     await openSyntheticDemo();
 
-    expect(screen.getByText('Phase 8 hardening')).toBeInTheDocument();
-    expect(screen.getByText('WC-P8H-0811')).toBeInTheDocument();
+    expect(screen.getByText('Phase 8 repair')).toBeInTheDocument();
+    expect(screen.getByText('WC-P8R2-0811')).toBeInTheDocument();
     expect(screen.getByText('Adaptive Coach')).toBeInTheDocument();
     expect(screen.getByText('Generated locally')).toBeInTheDocument();
     const duration = screen.getByRole('combobox', { name: 'Workout length' });
@@ -59,6 +59,7 @@ describe('Phase 8 final acceptance', () => {
     expect(
       screen.getByRole('navigation', { name: 'Primary navigation' }),
     ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Catalog' })).toBeVisible();
   });
 
   it('opens the workout preview and navigates to saved profiles', async () => {
@@ -154,6 +155,19 @@ describe('Phase 8 final acceptance', () => {
     ).toBeInTheDocument();
   });
 
+  it('keeps Catalog directly reachable while a workout is active', async () => {
+    await startActiveWorkout();
+    const catalog = screen.getByRole('button', { name: 'Catalog' });
+    catalog.focus();
+    expect(catalog).toHaveFocus();
+    fireEvent.click(catalog);
+    expect(
+      await screen.findByRole('heading', { name: 'Catalog', level: 1 }),
+    ).toBeInTheDocument();
+    expect(catalog).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('button', { name: 'Workout' })).toBeVisible();
+  });
+
   it('edits and verifies the local profile from Settings', async () => {
     await openSyntheticDemo();
 
@@ -216,7 +230,7 @@ describe('Phase 8 final acceptance', () => {
   it('starts a premium active workout and logs a one-tap prefilled set', async () => {
     await startActiveWorkout();
     expect(screen.getByText('Active workout')).toBeInTheDocument();
-    expect(screen.getByText('WC-P8H-0811')).toBeInTheDocument();
+    expect(screen.getByText('WC-P8R2-0811')).toBeInTheDocument();
     expect(screen.getByRole('spinbutton', { name: 'Weight' })).toHaveValue(40);
     expect(screen.getByRole('spinbutton', { name: 'Reps' })).toHaveValue(8);
     expect(screen.getByRole('spinbutton', { name: 'RIR' })).toHaveValue(2);
@@ -230,6 +244,44 @@ describe('Phase 8 final acceptance', () => {
     expect(
       screen.getAllByText(/Set saved and verified locally/).length,
     ).toBeGreaterThan(0);
+  });
+
+  it('keeps the next working set locked across a rapid click-through', async () => {
+    await startActiveWorkout();
+    fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Log set' }));
+    await screen.findByRole('region', { name: 'Rest timer' });
+    const nextSet = screen.getByRole('button', { name: 'Log set' });
+    expect(nextSet).toBeDisabled();
+    fireEvent.click(nextSet);
+    expect(screen.getAllByRole('button', { name: 'Edit' })).toHaveLength(1);
+    await waitFor(() => expect(nextSet).toBeEnabled(), { timeout: 1000 });
+  });
+
+  it('preserves an active workout load unit when preferences change', async () => {
+    await startActiveWorkout();
+    fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    const firstLogger = screen.getByRole('form', {
+      name: /Set 1 logger/,
+    });
+    expect(within(firstLogger).getByText('lb')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Units' }), {
+      target: { value: 'kg' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save local profile' }));
+    await screen.findByText(
+      'Profile, settings, and saved locations were written and verified.',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Workout' }));
+    const resumedLogger = await screen.findByRole('form', {
+      name: /Set 1 logger/,
+    });
+    expect(within(resumedLogger).getByText('lb')).toBeInTheDocument();
+    expect(
+      within(resumedLogger).getByRole('spinbutton', { name: 'Weight' }),
+    ).toHaveValue(40);
   });
 
   it('defers a waiting app-shell update while a verified workout is active', async () => {

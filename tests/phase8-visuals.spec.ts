@@ -19,13 +19,14 @@ async function saveViewport(
 test('captures the final mobile data-safety and demonstration evidence', async ({
   page,
 }) => {
+  test.setTimeout(60_000);
   await mkdir(evidenceDirectory, { recursive: true });
   await page.setViewportSize({ width: 412, height: 915 });
   await page.goto('./', { waitUntil: 'domcontentloaded' });
   await page
     .getByRole('button', { name: 'Explore with a synthetic demo profile' })
     .click();
-  await expect(page.getByText('WC-P8H-0811')).toBeVisible();
+  await expect(page.getByText('WC-P8R2-0811')).toBeVisible();
   const offlineReady = page.getByRole('button', {
     name: 'Offline app shell ready',
   });
@@ -54,4 +55,13 @@ test('captures the final mobile data-safety and demonstration evidence', async (
   await page.getByRole('button', { name: /Open demonstration for/ }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await saveViewport(page, 'production-guide-412x915.png');
+
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
+  await page.setViewportSize({ width: 1265, height: 900 });
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByText('Backup & diagnostics').click();
+  await page
+    .getByRole('button', { name: 'Export complete backup' })
+    .scrollIntoViewIfNeeded();
+  await saveViewport(page, 'data-safety-desktop-1265x900.png');
 });

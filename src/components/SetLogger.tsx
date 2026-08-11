@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { Icon } from './Icon';
+import { MAX_SET_REPS } from '../features/activeWorkout/schema';
 
 type SetValues = { weight: number; reps: number; rir: number };
 
@@ -43,6 +44,7 @@ export function SetLogger({
     values.weight >= 0 &&
     Number.isInteger(values.reps) &&
     values.reps > 0 &&
+    values.reps <= MAX_SET_REPS &&
     Number.isInteger(values.rir) &&
     values.rir >= 0 &&
     values.rir <= 10;
@@ -57,8 +59,7 @@ export function SetLogger({
         if (!valid || disabled || submittedRef.current) return;
         submittedRef.current = true;
         setSubmitted(true);
-        const started = performance.now();
-        onSubmit(values, performance.now() - started);
+        onSubmit(values, 0);
       }}
     >
       <div className="set-logger__heading">
@@ -94,6 +95,7 @@ export function SetLogger({
             inputMode="numeric"
             type="number"
             min="1"
+            max={MAX_SET_REPS}
             step="1"
             value={reps}
             disabled={disabled}
@@ -124,7 +126,9 @@ export function SetLogger({
         {submitted ? 'Saving set…' : submitLabel}
       </button>
       <p className="set-logger__hint">
-        Prefilled from the target or last set. A normal set takes one tap.
+        {Number.isFinite(values.reps) && values.reps > MAX_SET_REPS
+          ? `Reps must be between 1 and ${MAX_SET_REPS}.`
+          : 'Prefilled from the target or last set. A normal set takes one tap.'}
       </p>
     </form>
   );

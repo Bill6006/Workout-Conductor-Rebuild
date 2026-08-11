@@ -2,6 +2,12 @@ import { exerciseById } from '../../catalog/exercises';
 import { muscleById, muscles } from '../../catalog/muscles';
 import type { MuscleId } from '../../catalog/schema';
 import type { Profile } from '../../domain/models';
+import {
+  comparableWeight,
+  convertWeight,
+  roundedWeight,
+  type WeightUnit,
+} from '../../domain/units';
 import type {
   ActiveSession,
   ActiveSetRecord,
@@ -19,6 +25,18 @@ import type {
 } from './schema';
 
 const DAY = 86_400_000;
+
+function weightInUnit(record: ActiveSetRecord, units: WeightUnit) {
+  return convertWeight(record.weight, record.weightUnit, units);
+}
+
+function displayWeight(record: ActiveSetRecord, units: WeightUnit) {
+  return roundedWeight(record.weight, record.weightUnit, units);
+}
+
+function recordVolume(record: ActiveSetRecord, units: WeightUnit) {
+  return weightInUnit(record, units) * record.reps;
+}
 
 function completedSessions(sessions: ActiveSession[]) {
   return sessions
@@ -100,38 +118,45 @@ export function detectSessionPersonalRecords(
       (record) => record.exerciseId === exerciseId,
     );
     const bestWeight = current.reduce((best, record) =>
-      record.weight > best.weight ? record : best,
+      weightInUnit(record, units) > weightInUnit(best, units) ? record : best,
     );
     const previousMaxWeight = Math.max(
       0,
-      ...previous.map((record) => record.weight),
+      ...previous.map((record) => weightInUnit(record, units)),
     );
-    if (bestWeight.weight > 0 && bestWeight.weight > previousMaxWeight) {
+    if (
+      weightInUnit(bestWeight, units) > 0 &&
+      weightInUnit(bestWeight, units) > previousMaxWeight
+    ) {
       records.push(
         makePr(
           session,
           bestWeight,
           'weight',
           'Load PR',
-          `${bestWeight.weight} ${units} × ${bestWeight.reps}`,
+          `${displayWeight(bestWeight, units)} ${units} × ${bestWeight.reps}`,
         ),
       );
     }
 
     const bestByWeight = new Map<number, ActiveSetRecord>();
     current.forEach((record) => {
-      const best = bestByWeight.get(record.weight);
-      if (!best || record.reps > best.reps)
-        bestByWeight.set(record.weight, record);
+      const key = comparableWeight(record.weight, record.weightUnit);
+      const best = bestByWeight.get(key);
+      if (!best || record.reps > best.reps) bestByWeight.set(key, record);
     });
     let repPr: ActiveSetRecord | null = null;
     let repPrDelta = 0;
     for (const record of bestByWeight.values()) {
       if (record.weight <= 0) continue;
+      const key = comparableWeight(record.weight, record.weightUnit);
       const previousReps = Math.max(
         0,
         ...previous
-          .filter((candidate) => candidate.weight === record.weight)
+          .filter(
+            (candidate) =>
+              comparableWeight(candidate.weight, candidate.weightUnit) === key,
+          )
           .map((candidate) => candidate.reps),
       );
       if (previousReps > 0 && record.reps > previousReps) {
@@ -149,19 +174,19 @@ export function detectSessionPersonalRecords(
           repPr,
           'reps-at-weight',
           'Rep PR',
-          `${repPr.reps} reps at ${repPr.weight} ${units}`,
+          `${repPr.reps} reps at ${displayWeight(repPr, units)} ${units}`,
         ),
       );
     }
 
     const currentVolume = current.reduce(
-      (total, record) => total + record.weight * record.reps,
+      (total, record) => total + recordVolume(record, units),
       0,
     );
     const previousSessionVolumes = prior.map((candidate) =>
       prRecords(candidate)
         .filter((record) => record.exerciseId === exerciseId)
-        .reduce((total, record) => total + record.weight * record.reps, 0),
+        .reduce((total, record) => total + recordVolume(record, units), 0),
     );
     if (
       currentVolume > 0 &&
@@ -281,9 +306,9 @@ function coverageFor(
     );
 }
 
-function epley(record: ActiveSetRecord) {
+function epley(record: ActiveSetRecord, units: WeightUnit) {
   if (record.weight <= 0 || record.reps <= 0) return null;
-  return record.weight * (1 + Math.min(record.reps, 12) / 30);
+  return weightInUnit(record, units) * (1 + Math.min(record.reps, 12) / 30);
 }
 
 function confidenceFor(samples: number): 'low' | 'medium' | 'high' {
@@ -340,13 +365,13 @@ export function analyzeProgress(
       0,
       ...prRecords(relevant[0]!)
         .filter((record) => record.exerciseId === exerciseId)
-        .map((record) => epley(record) ?? 0),
+        .map((record) => epley(record, units) ?? 0),
     );
     const lastStrength = Math.max(
       0,
       ...prRecords(relevant.at(-1)!)
         .filter((record) => record.exerciseId === exerciseId)
-        .map((record) => epley(record) ?? 0),
+        .map((record) => epley(record, units) ?? 0),
     );
     const latestSession = relevant.at(-1)!;
     return {
@@ -355,7 +380,7 @@ export function analyzeProgress(
       sessionCount: relevant.length,
       workingSets: records.length,
       totalVolume: records.reduce(
-        (total, record) => total + record.weight * record.reps,
+        (total, record) => total + recordVolume(record, units),
         0,
       ),
       estimatedStrength:
@@ -424,7 +449,7 @@ export function analyzeProgress(
       (total, session) =>
         total +
         volumeRecords(session).reduce(
-          (sum, record) => sum + record.weight * record.reps,
+          (sum, record) => sum + recordVolume(record, units),
           0,
         ),
       0,
@@ -495,7 +520,7 @@ export function buildSessionSummary(
     completedSets: records.length,
     exercises: new Set(records.map((record) => record.exerciseId)).size,
     volume: records.reduce(
-      (total, record) => total + record.weight * record.reps,
+      (total, record) => total + recordVolume(record, units),
       0,
     ),
     durationMinutes: Math.max(

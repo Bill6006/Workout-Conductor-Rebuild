@@ -42,3 +42,9 @@ After a successful restore, the user can still select **Roll back last restore**
 Phase 8 accepts the documented v1 foundation export only through the same preview-and-confirm flow. A legacy import replaces profile, equipment, locations, and settings, while preserving workout history, active sessions, notes, saved workouts, custom content, media, and Coach targets. Read-back verification and rollback apply to the migration as well.
 
 Invalid, truncated, or unsupported files are rejected before mutation. Cleanup explicitly states that profiles, workouts, notes, media, and targets remain protected.
+
+## Weight-unit and repetition migration
+
+Active-session schema v2 stores the recorded unit on sessions and set records, and Coach targets store their own unit. Existing schema-v1 records are stamped once from the saved settings that accompany them; numeric loads are not relabeled or rewritten when the preference later changes. Complete backups retain these unit fields and restore them exactly.
+
+New records and imports accept only 1–200 whole repetitions. If an older on-device session already contains a larger value, migration preserves the original count as flagged recovery metadata, caps the editable display value at the supported boundary, and disables its progression, PR, and working-volume flags. The application therefore remains usable without allowing legacy invalid evidence to influence coaching.

@@ -36,4 +36,14 @@ describe('Phase 8 set submission hardening', () => {
     expect(onSubmit).toHaveBeenCalledOnce();
     expect(screen.getByRole('button', { name: 'Saving set…' })).toBeDisabled();
   });
+
+  it('rejects repetitions above the documented 200-rep boundary', () => {
+    const onSubmit = renderLogger();
+    const reps = screen.getByRole('spinbutton', { name: 'Reps' });
+    expect(reps).toHaveAttribute('max', '200');
+    fireEvent.change(reps, { target: { value: '999' } });
+    expect(screen.getByText('Reps must be between 1 and 200.')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Log set' })).toBeDisabled();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
 });

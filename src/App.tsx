@@ -16,10 +16,10 @@ import {
   type BackupPreview,
 } from './storage/backup';
 import {
-  loadActiveSession,
   loadBundle,
   loadSessionHistory,
   loadSavedWorkouts,
+  migrateWeightBearingRecords,
   saveActiveSessionVerified,
   saveBundleVerified,
   saveWorkoutVerified,
@@ -41,24 +41,26 @@ import {
   PWA_UPDATE_READY_EVENT,
 } from './pwaEvents';
 
-type TabId = 'today' | 'workout' | 'progress' | 'plan' | 'settings';
+type TabId = 'today' | 'workout' | 'catalog' | 'progress' | 'plan' | 'settings';
 
 const navItems: { id: TabId; label: string; icon: IconName }[] = [
   { id: 'today', label: 'Today', icon: 'today' },
   { id: 'workout', label: 'Workout', icon: 'workout' },
+  { id: 'catalog', label: 'Catalog', icon: 'catalog' },
   { id: 'progress', label: 'Progress', icon: 'progress' },
   { id: 'plan', label: 'Plan', icon: 'plan' },
   { id: 'settings', label: 'Settings', icon: 'settings' },
 ];
 
 async function loadLocalState() {
-  const [storedBundle, storedSession, storedHistory, storedSaved] =
-    await Promise.all([
-      loadBundle(),
-      loadActiveSession(),
-      loadSessionHistory(),
-      loadSavedWorkouts(),
-    ]);
+  const storedBundle = await loadBundle();
+  await migrateWeightBearingRecords(storedBundle.settings.units);
+  const [storedHistory, storedSaved] = await Promise.all([
+    loadSessionHistory(storedBundle.settings.units),
+    loadSavedWorkouts(),
+  ]);
+  const storedSession =
+    storedHistory.find((session) => session.status !== 'completed') ?? null;
   return { storedBundle, storedSession, storedHistory, storedSaved };
 }
 
@@ -196,11 +198,17 @@ export default function App() {
     const equipment = bundle.equipmentProfiles.find(
       (item) => item.id === location?.equipmentProfileId,
     );
-    const created = createActiveSession(workout, new Date(), readiness, {
-      locationId: location?.id ?? null,
-      locationKind: location?.kind ?? null,
-      equipmentIds: equipment?.items ?? [],
-    });
+    const created = createActiveSession(
+      workout,
+      new Date(),
+      readiness,
+      {
+        locationId: location?.id ?? null,
+        locationKind: location?.kind ?? null,
+        equipmentIds: equipment?.items ?? [],
+      },
+      bundle.settings.units,
+    );
     const verified = await saveActiveSessionVerified(created);
     setActiveSession(verified);
     setActiveTab('workout');
@@ -278,7 +286,7 @@ export default function App() {
         </div>
         <span className="loading-pulse" />
         <p>Opening your private training space…</p>
-        <small>WC-P8H-0811</small>
+        <small>WC-P8R2-0811</small>
       </div>
     );
   }
@@ -364,6 +372,7 @@ export default function App() {
         {activeTab === 'progress' && (
           <ProgressView bundle={bundle} sessionHistory={sessionHistory} />
         )}
+        {activeTab === 'catalog' && <CatalogView />}
         {activeTab === 'plan' && (
           <PlanView
             bundle={bundle}
