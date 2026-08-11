@@ -26,7 +26,7 @@ async function startActiveWorkout() {
   });
 }
 
-describe('Phase 5 active workout and logging', () => {
+describe('Phase 6 adaptive coaching and active workout', () => {
   it('starts with the short private onboarding welcome', async () => {
     render(<App />);
 
@@ -44,8 +44,9 @@ describe('Phase 5 active workout and logging', () => {
   it('saves a synthetic demo and renders the useful Today dashboard', async () => {
     await openSyntheticDemo();
 
-    expect(screen.getByText('Phase 5 live')).toBeInTheDocument();
-    expect(screen.getByText('WC-P5-0810')).toBeInTheDocument();
+    expect(screen.getByText('Phase 6 live')).toBeInTheDocument();
+    expect(screen.getByText('WC-P6-0810')).toBeInTheDocument();
+    expect(screen.getByText('Adaptive Coach')).toBeInTheDocument();
     expect(screen.getByText('Generated locally')).toBeInTheDocument();
     const duration = screen.getByRole('combobox', { name: 'Workout length' });
     expect(duration).toHaveValue('default');
@@ -179,7 +180,7 @@ describe('Phase 5 active workout and logging', () => {
   it('starts a premium active workout and logs a one-tap prefilled set', async () => {
     await startActiveWorkout();
     expect(screen.getByText('Active workout')).toBeInTheDocument();
-    expect(screen.getByText('WC-P5-0810')).toBeInTheDocument();
+    expect(screen.getByText('WC-P6-0810')).toBeInTheDocument();
     expect(screen.getByRole('spinbutton', { name: 'Weight' })).toHaveValue(40);
     expect(screen.getByRole('spinbutton', { name: 'Reps' })).toHaveValue(8);
     expect(screen.getByRole('spinbutton', { name: 'RIR' })).toHaveValue(2);

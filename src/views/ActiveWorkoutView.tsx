@@ -12,6 +12,9 @@ import { rankAlternatives } from '../engine/alternatives/rankAlternatives';
 import { recalibrateWorkout } from '../engine/recalibration/recalibrateWorkout';
 import { emptyCompletedWork } from '../engine/recalibration/schema';
 import { generationInputFromBundle } from '../engine/workoutGenerator/generateWorkout';
+import { coachRecommendation } from '../engine/coach/progression';
+import { applyConfirmedCoachAction } from '../engine/coach/applyCoachAction';
+import type { CoachAction } from '../engine/coach/schema';
 import type {
   ExercisePrescription,
   WorkoutBlock,
@@ -43,6 +46,7 @@ import {
 type ActiveWorkoutViewProps = {
   session: ActiveSession;
   bundle: AppBundle;
+  sessionHistory: ActiveSession[];
   onSessionChange: (session: ActiveSession, message?: string) => void;
 };
 
@@ -122,6 +126,7 @@ function activeEquipment(bundle: AppBundle) {
 export function ActiveWorkoutView({
   session,
   bundle,
+  sessionHistory,
   onSessionChange,
 }: ActiveWorkoutViewProps) {
   const [now, setNow] = useState(() => new Date(session.updatedAt).getTime());
@@ -132,6 +137,17 @@ export function ActiveWorkoutView({
   const [noteDraft, setNoteDraft] = useState('');
   const [plateWeight, setPlateWeight] = useState(40);
   const [interactionMessage, setInteractionMessage] = useState('');
+  const [pendingCoachAction, setPendingCoachAction] =
+    useState<CoachAction | null>(null);
+  const [feedbackDifficulty, setFeedbackDifficulty] = useState<
+    'too-easy' | 'right' | 'too-hard' | 'pain'
+  >(session.sessionFeedback?.difficulty ?? 'right');
+  const [energyAfter, setEnergyAfter] = useState(
+    session.sessionFeedback?.energyAfter ?? 3,
+  );
+  const [feedbackNote, setFeedbackNote] = useState(
+    session.sessionFeedback?.note ?? '',
+  );
 
   const slot = nextSetSlot(session);
   const block = slot
@@ -155,6 +171,15 @@ export function ActiveWorkoutView({
     (record) =>
       record.exerciseId === move?.exerciseId && record.kind !== 'warmup',
   );
+  const painSignalForMove = session.records.some(
+    (record) => record.exerciseId === move?.exerciseId && record.painReported,
+  );
+  const coach = coachRecommendation({
+    session,
+    history: sessionHistory.filter((item) => item.id !== session.id),
+    bundle,
+    currentExerciseId: move?.exerciseId ?? null,
+  });
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(Date.now()), 1000);
@@ -228,6 +253,8 @@ export function ActiveWorkoutView({
         targetSeconds: restSeconds,
         status: 'running',
       },
+      lastRestStartedAt: timestamp,
+      lastRestTargetSeconds: restSeconds,
       updatedAt: timestamp,
     });
   }
@@ -300,8 +327,68 @@ export function ActiveWorkoutView({
   }
 
   function replaceCurrentExercise(replacementId: string) {
-    if (!move || hasWorkingRecordForMove) return;
+    if (!move) return;
     const timestamp = new Date().toISOString();
+    const replacement = exerciseById.get(replacementId);
+    if (hasWorkingRecordForMove && painSignalForMove && replacement) {
+      const update = (candidate: ExercisePrescription) =>
+        candidate.prescriptionId === move.prescriptionId
+          ? {
+              ...candidate,
+              exerciseId: replacement.id,
+              exerciseName: replacement.name,
+              catalogRole: replacement.trainingRole,
+              progressionFamily: replacement.progressionFamily,
+              repRange: replacement.typicalRepRange,
+              warmupSets: [],
+              dropSet:
+                replacement.dropSet.support === 'safe'
+                  ? candidate.dropSet
+                  : null,
+              rationale:
+                'Pain-free alternative confirmed for unfinished sets; completed records remain attached to the original exercise.',
+            }
+          : candidate;
+      const blocks = session.workout.blocks.map((candidate) => {
+        if (candidate.kind === 'exercise') {
+          const prescription = update(candidate.prescription);
+          return {
+            ...candidate,
+            prescription,
+            canonicalRow: prescription.exerciseName,
+          };
+        }
+        const moves = candidate.moves.map(update);
+        return candidate.kind === 'superset'
+          ? {
+              ...candidate,
+              moves: [moves[0], moves[1]] as [
+                ExercisePrescription,
+                ExercisePrescription,
+              ],
+              canonicalRow: moves.map((item) => item.exerciseName).join(' + '),
+            }
+          : {
+              ...candidate,
+              moves,
+              canonicalRow: moves.map((item) => item.exerciseName).join(' + '),
+            };
+      });
+      changeSession(
+        ActiveSessionSchema.parse({
+          ...session,
+          workout: { ...session.workout, blocks },
+          acceptedAlternativeIds: Array.from(
+            new Set([...session.acceptedAlternativeIds, replacementId]),
+          ),
+          updatedAt: timestamp,
+        }),
+        `${move.exerciseName} replaced for unfinished sets. Its completed records remain unchanged.`,
+      );
+      setShowAlternatives(false);
+      return;
+    }
+    if (hasWorkingRecordForMove) return;
     const result = recalibrateWorkout({
       requestId: `active-replacement-${timestamp}`,
       trigger: 'exercise-replaced',
@@ -354,7 +441,7 @@ export function ActiveWorkoutView({
       setInteractionMessage(result.errorMessage);
       return;
     }
-    const replacement = exerciseById.get(replacementId);
+    const replacementName = exerciseById.get(replacementId);
     const replacementMove = result.workout.blocks
       .flatMap(blockMoves)
       .find((candidate) => candidate.exerciseId === replacementId);
@@ -373,9 +460,69 @@ export function ActiveWorkoutView({
           : session.warmupSelections,
         updatedAt: timestamp,
       }),
-      `${move.exerciseName} replaced with ${replacement?.name ?? replacementId}. Only this exercise changed.`,
+      `${move.exerciseName} replaced with ${replacementName?.name ?? replacementId}. Only this exercise changed.`,
     );
     setShowAlternatives(false);
+  }
+
+  function requestCoachAction(action: CoachAction) {
+    if (action.kind === 'open-alternatives') {
+      setShowAlternatives(true);
+      return;
+    }
+    setPendingCoachAction(action);
+  }
+
+  function confirmCoachAction() {
+    if (!pendingCoachAction) return;
+    const next = applyConfirmedCoachAction(session, pendingCoachAction);
+    changeSession(
+      next,
+      `${pendingCoachAction.label} confirmed. Completed records were not changed.`,
+    );
+    setPendingCoachAction(null);
+  }
+
+  function reportPain() {
+    const timestamp = new Date().toISOString();
+    const latestForExercise = [...session.records]
+      .reverse()
+      .find((record) => record.exerciseId === move?.exerciseId);
+    changeSession(
+      ActiveSessionSchema.parse({
+        ...session,
+        records: session.records.map((record) =>
+          record.id === latestForExercise?.id
+            ? { ...record, painReported: true, editedAt: timestamp }
+            : record,
+        ),
+        readiness: {
+          ...session.readiness,
+          jointDiscomfort: 'moderate',
+          checkedAt: timestamp,
+        },
+        updatedAt: timestamp,
+      }),
+      'Pain signal saved. The coach will prioritize a pain-free alternative.',
+    );
+    setShowOptions(false);
+  }
+
+  function saveSessionFeedback() {
+    const timestamp = new Date().toISOString();
+    changeSession(
+      ActiveSessionSchema.parse({
+        ...session,
+        sessionFeedback: {
+          difficulty: feedbackDifficulty,
+          energyAfter,
+          note: feedbackNote.trim(),
+          submittedAt: timestamp,
+        },
+        updatedAt: timestamp,
+      }),
+      'Session feedback saved locally for the next recommendation.',
+    );
   }
 
   if (session.status === 'completed') {
@@ -390,8 +537,8 @@ export function ActiveWorkoutView({
         <p className="eyebrow">Session complete</p>
         <h1 id="completion-title">Strong work. Logged locally.</h1>
         <p>
-          Phase 5 closes the final exercise or superset round directly into this
-          completion surface. The deeper coaching summary arrives in Phase 7.
+          Your completed records now inform the next progression target. The
+          deeper progress dashboard arrives in Phase 7.
         </p>
         <div className="completion-grid">
           <div>
@@ -416,6 +563,53 @@ export function ActiveWorkoutView({
           <span>{completed.skippedBlocks} skipped blocks</span>
           <span>Verified local save</span>
         </div>
+        <section
+          className="session-feedback"
+          aria-labelledby="session-feedback-title"
+        >
+          <p className="overline">Session feedback</p>
+          <h2 id="session-feedback-title">How did the whole workout land?</h2>
+          <div className="feedback-options">
+            {(['too-easy', 'right', 'too-hard', 'pain'] as const).map(
+              (value) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={feedbackDifficulty === value ? 'is-selected' : ''}
+                  onClick={() => setFeedbackDifficulty(value)}
+                >
+                  {value === 'right' ? 'About right' : value.replace('-', ' ')}
+                </button>
+              ),
+            )}
+          </div>
+          <label>
+            <span>Energy after · {energyAfter}/5</span>
+            <input
+              type="range"
+              min="1"
+              max="5"
+              value={energyAfter}
+              onChange={(event) => setEnergyAfter(Number(event.target.value))}
+            />
+          </label>
+          <label>
+            <span>Optional note</span>
+            <textarea
+              maxLength={500}
+              value={feedbackNote}
+              onChange={(event) => setFeedbackNote(event.target.value)}
+              placeholder="Recovery, discomfort, or what felt unusually strong"
+            />
+          </label>
+          <button
+            className="primary-button"
+            type="button"
+            onClick={saveSessionFeedback}
+          >
+            {session.sessionFeedback ? 'Update feedback' : 'Save feedback'}
+          </button>
+        </section>
       </section>
     );
   }
@@ -444,10 +638,61 @@ export function ActiveWorkoutView({
 
       <div className="phase-banner">
         <span className="status-pill">
-          <span /> Phase 5 live
+          <span /> Phase 6 live
         </span>
-        <span className="build-label">WC-P5-0810</span>
+        <span className="build-label">WC-P6-0810</span>
       </div>
+
+      <section
+        className="adaptive-coach adaptive-coach--active"
+        aria-labelledby="active-coach-title"
+      >
+        <div className="adaptive-coach__heading">
+          <div className="adaptive-coach__mark">
+            <Icon name="spark" size={20} />
+          </div>
+          <div>
+            <p className="overline">Adaptive Coach</p>
+            <h2 id="active-coach-title">{coach.title}</h2>
+          </div>
+          <span>{coach.priority.replaceAll('-', ' ')}</span>
+        </div>
+        <p>{coach.guidance}</p>
+        {coach.nextTarget && (
+          <strong className="coach-target">
+            Next target · {coach.nextTarget}
+          </strong>
+        )}
+        <details>
+          <summary>Why</summary>
+          <p>{coach.why}</p>
+          {coach.evidence.map((item) => (
+            <small key={item}>{item}</small>
+          ))}
+        </details>
+        {coach.action && !pendingCoachAction && (
+          <button
+            type="button"
+            onClick={() => requestCoachAction(coach.action!)}
+          >
+            {coach.action.label}
+          </button>
+        )}
+        {pendingCoachAction && (
+          <div className="coach-confirm" role="alert">
+            <span>
+              Apply this to unfinished work? Completed and manually corrected
+              sets stay untouched.
+            </span>
+            <button type="button" onClick={confirmCoachAction}>
+              Confirm
+            </button>
+            <button type="button" onClick={() => setPendingCoachAction(null)}>
+              Keep plan
+            </button>
+          </div>
+        )}
+      </section>
 
       <section className="workout-clock-strip" aria-label="Workout timing">
         <div>
@@ -598,7 +843,7 @@ export function ActiveWorkoutView({
           </button>
           <button
             type="button"
-            disabled={hasWorkingRecordForMove}
+            disabled={hasWorkingRecordForMove && !painSignalForMove}
             onClick={() => setShowAlternatives(true)}
           >
             Alternatives
@@ -610,9 +855,11 @@ export function ActiveWorkoutView({
             <strong>{move.rationale}</strong>
             <p>{slot.loadGuidance}</p>
             <span>
-              {hasWorkingRecordForMove
-                ? 'Current exercise locked after its first working set.'
-                : 'This slot can still be replaced without changing neighboring work.'}
+              {hasWorkingRecordForMove && !painSignalForMove
+                ? 'Current exercise locked after its first working set unless pain is reported.'
+                : painSignalForMove
+                  ? 'A confirmed pain-free alternative changes unfinished sets only.'
+                  : 'This slot can still be replaced without changing neighboring work.'}
             </span>
           </div>
         )}
@@ -861,6 +1108,9 @@ export function ActiveWorkoutView({
               }}
             >
               Pause workout
+            </button>
+            <button type="button" onClick={reportPain}>
+              Report pain on current exercise
             </button>
           </section>
         </div>

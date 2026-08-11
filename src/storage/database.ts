@@ -215,6 +215,16 @@ export async function loadActiveSession(): Promise<ActiveSession | null> {
   );
 }
 
+export async function loadSessionHistory(): Promise<ActiveSession[]> {
+  const sessions = await getAllRecords<ActiveSession>(
+    storeNames.activeSessions,
+    ActiveSessionSchema,
+  );
+  return sessions.sort((first, second) =>
+    second.updatedAt.localeCompare(first.updatedAt),
+  );
+}
+
 export async function saveExerciseNoteVerified(
   note: ExerciseNote,
 ): Promise<ExerciseNote> {

@@ -6,11 +6,15 @@ import { createEmptyBundle } from './domain/defaults';
 import type { AppBundle } from './domain/models';
 import type { GeneratedWorkout } from './engine/workoutGenerator/schema';
 import { createActiveSession } from './features/activeWorkout/session';
-import type { ActiveSession } from './features/activeWorkout/schema';
+import type {
+  ActiveSession,
+  ReadinessCheck,
+} from './features/activeWorkout/schema';
 import { importBackupFoundation } from './storage/backup';
 import {
   loadActiveSession,
   loadBundle,
+  loadSessionHistory,
   saveActiveSessionVerified,
   saveBundleVerified,
 } from './storage/database';
@@ -44,16 +48,18 @@ export default function App() {
   const [activeSession, setActiveSession] = useState<ActiveSession | null>(
     null,
   );
+  const [sessionHistory, setSessionHistory] = useState<ActiveSession[]>([]);
   const activeSaveQueue = useRef<Promise<void>>(Promise.resolve());
   const activeSaveSequence = useRef(0);
 
   useEffect(() => {
     let active = true;
-    void Promise.all([loadBundle(), loadActiveSession()])
-      .then(([storedBundle, storedSession]) => {
+    void Promise.all([loadBundle(), loadActiveSession(), loadSessionHistory()])
+      .then(([storedBundle, storedSession, storedHistory]) => {
         if (!active) return;
         setBundle(storedBundle);
         setActiveSession(storedSession);
+        setSessionHistory(storedHistory);
         setShowOnboarding(!storedBundle.profile?.onboardingComplete);
         setStorageStatus(
           storedSession
@@ -111,13 +117,25 @@ export default function App() {
     setAnnouncement('Validated profile foundation imported locally.');
   }
 
-  async function startWorkout(workout: GeneratedWorkout) {
+  async function startWorkout(
+    workout: GeneratedWorkout,
+    readiness: ReadinessCheck,
+  ) {
     if (activeSession && activeSession.status !== 'completed') {
       setActiveTab('workout');
       setAnnouncement('Active workout resumed at the saved position.');
       return;
     }
-    const created = createActiveSession(workout);
+    const location =
+      bundle.locations.find((item) => item.isDefault) ?? bundle.locations[0];
+    const equipment = bundle.equipmentProfiles.find(
+      (item) => item.id === location?.equipmentProfileId,
+    );
+    const created = createActiveSession(workout, new Date(), readiness, {
+      locationId: location?.id ?? null,
+      locationKind: location?.kind ?? null,
+      equipmentIds: equipment?.items ?? [],
+    });
     const verified = await saveActiveSessionVerified(created);
     setActiveSession(verified);
     setActiveTab('workout');
@@ -131,6 +149,12 @@ export default function App() {
     const previous = activeSession;
     const sequence = ++activeSaveSequence.current;
     setActiveSession(next);
+    if (next.status === 'completed') {
+      setSessionHistory((current) => [
+        next,
+        ...current.filter((item) => item.id !== next.id),
+      ]);
+    }
     if (message) setAnnouncement(message);
     const verification = activeSaveQueue.current
       .catch(() => undefined)
@@ -164,7 +188,7 @@ export default function App() {
         </div>
         <span className="loading-pulse" />
         <p>Opening your private training space…</p>
-        <small>WC-P5-0810</small>
+        <small>WC-P6-0810</small>
       </div>
     );
   }
@@ -197,6 +221,7 @@ export default function App() {
           <TodayView
             bundle={bundle}
             activeSession={activeSession}
+            sessionHistory={sessionHistory}
             onStartWorkout={startWorkout}
           />
         )}
@@ -205,6 +230,7 @@ export default function App() {
             <ActiveWorkoutView
               session={activeSession}
               bundle={bundle}
+              sessionHistory={sessionHistory}
               onSessionChange={updateActiveSession}
             />
           ) : (

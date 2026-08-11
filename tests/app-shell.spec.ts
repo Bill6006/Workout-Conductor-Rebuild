@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('runs Phase 5 on the Phase 4 recalibration foundation and persists profile edits', async ({
+test('runs Phase 6 adaptive coaching on the recalibration foundation and persists profile edits', async ({
   page,
 }) => {
   await page.goto('./', { waitUntil: 'domcontentloaded' });
@@ -16,7 +16,11 @@ test('runs Phase 5 on the Phase 4 recalibration foundation and persists profile 
   await expect(
     page.getByRole('heading', { name: 'Ready, Demo.' }),
   ).toBeVisible();
-  await expect(page.getByText('Phase 5 live')).toBeVisible();
+  await expect(page.getByText('Phase 6 live')).toBeVisible();
+  await expect(page.getByText('Adaptive Coach', { exact: true })).toBeVisible();
+  await page.getByRole('combobox', { name: 'Energy' }).selectOption('2');
+  await page.getByRole('button', { name: 'Apply readiness' }).click();
+  await expect(page.getByRole('button', { name: 'Applied' })).toBeDisabled();
   await expect(
     page.getByText('Generated locally', { exact: true }),
   ).toBeVisible();
@@ -147,7 +151,8 @@ test('logs, edits, replaces, pauses, and resumes one durable active workout', as
     .click();
   await page.getByRole('button', { name: 'Start workout' }).click();
   await expect(page.getByText('Active workout')).toBeVisible();
-  await expect(page.getByText('WC-P5-0810')).toBeVisible();
+  await expect(page.getByText('WC-P6-0810')).toBeVisible();
+  await expect(page.getByText('Adaptive Coach', { exact: true })).toBeVisible();
 
   await page.getByRole('button', { name: /Open demonstration for/ }).click();
   const guide = page
@@ -202,7 +207,7 @@ test('logs, edits, replaces, pauses, and resumes one durable active workout', as
   await expect(page.getByText('42.5 lb × 8 · 2 RIR')).toBeVisible();
 });
 
-test('keeps Phase 5 logging responsive at supported mobile widths and 150 percent zoom', async ({
+test('keeps Phase 6 coaching and logging responsive at supported mobile widths and 150 percent zoom', async ({
   page,
 }) => {
   await page.goto('./', { waitUntil: 'domcontentloaded' });

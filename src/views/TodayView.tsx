@@ -24,12 +24,19 @@ import {
   evaluationMessagesFor,
   recalibrationTriggerRegistry,
 } from '../engine/recalibration/triggerRegistry';
-import type { ActiveSession } from '../features/activeWorkout/schema';
+import type {
+  ActiveSession,
+  ReadinessCheck,
+} from '../features/activeWorkout/schema';
 
 type TodayViewProps = {
   bundle: AppBundle;
   activeSession: ActiveSession | null;
-  onStartWorkout: (workout: ReturnType<typeof generateWorkout>) => void;
+  sessionHistory: ActiveSession[];
+  onStartWorkout: (
+    workout: ReturnType<typeof generateWorkout>,
+    readiness: ReadinessCheck,
+  ) => void;
 };
 
 type PendingRecalibration = {
@@ -70,6 +77,7 @@ function blockMoves(block: WorkoutBlock) {
 export function TodayView({
   bundle,
   activeSession,
+  sessionHistory,
   onStartWorkout,
 }: TodayViewProps) {
   const [duration, setDuration] = useState<WorkoutDuration>('default');
@@ -84,6 +92,16 @@ export function TodayView({
     null,
   );
   const [busyEquipment, setBusyEquipment] = useState<EquipmentId | ''>('');
+  const [readiness, setReadiness] = useState<ReadinessCheck>(() => ({
+    energy: 3,
+    soreness: 2,
+    sleep: 3,
+    jointDiscomfort: 'none',
+    motivation: 3,
+    timePressure: 'none',
+    checkedAt: new Date().toISOString(),
+  }));
+  const [readinessApplied, setReadinessApplied] = useState(false);
   const requestSequence = useRef(0);
   const profile = bundle.profile!;
   const location =
@@ -129,6 +147,7 @@ export function TodayView({
     affectedExerciseId?: string | null;
     busyEquipmentIds?: EquipmentId[];
     reason: string;
+    readinessOverride?: 'ready' | 'moderate' | 'low';
   }) {
     const nextDuration = args.nextDuration ?? duration;
     const sequence = requestSequence.current + 1;
@@ -167,7 +186,7 @@ export function TodayView({
       settingOverrides: {},
       painFlags: [],
       recoveryOverride: null,
-      readinessOverride: null,
+      readinessOverride: args.readinessOverride ?? null,
       performanceChanges: [],
       intensityRequest: null,
       endByExactTime: false,
@@ -186,6 +205,39 @@ export function TodayView({
       );
     }
     setPending(null);
+  }
+
+  function readinessLevel(): 'ready' | 'moderate' | 'low' {
+    if (
+      readiness.jointDiscomfort === 'severe' ||
+      readiness.energy === 1 ||
+      readiness.sleep === 1
+    )
+      return 'low';
+    if (
+      readiness.jointDiscomfort === 'moderate' ||
+      readiness.energy <= 2 ||
+      readiness.sleep <= 2 ||
+      readiness.soreness >= 4 ||
+      readiness.motivation <= 2 ||
+      readiness.timePressure === 'high'
+    )
+      return 'moderate';
+    return 'ready';
+  }
+
+  function applyReadiness() {
+    const level = readinessLevel();
+    setReadiness((current) => ({
+      ...current,
+      checkedAt: new Date().toISOString(),
+    }));
+    setReadinessApplied(true);
+    void runRecalibration({
+      trigger: 'readiness-change',
+      readinessOverride: level,
+      reason: `Athlete confirmed a ${level} readiness check before starting`,
+    });
   }
 
   function cancelRecalibration() {
@@ -248,9 +300,9 @@ export function TodayView({
 
       <div className="phase-banner">
         <span className="status-pill">
-          <span /> Phase 5 live
+          <span /> Phase 6 live
         </span>
-        <span className="build-label">WC-P5-0810</span>
+        <span className="build-label">WC-P6-0810</span>
       </div>
 
       <section className="today-hero" aria-labelledby="today-workout-title">
@@ -259,8 +311,10 @@ export function TodayView({
           <span className="synthetic-pill">
             <Icon name="spark" size={14} /> Generated locally
           </span>
-          <span className="readiness-pill">
-            <span /> Ready
+          <span
+            className={`readiness-pill readiness-pill--${readinessLevel()}`}
+          >
+            <span /> {readinessLevel()}
           </span>
         </div>
         <p className="overline">Recommended today</p>
@@ -337,7 +391,7 @@ export function TodayView({
         <button
           className="primary-button start-workout-button"
           type="button"
-          onClick={() => onStartWorkout(workout)}
+          onClick={() => onStartWorkout(workout, readiness)}
         >
           {activeSession && activeSession.status !== 'completed'
             ? 'Resume active workout'
@@ -354,6 +408,121 @@ export function TodayView({
           {showWorkout ? 'Hide generated workout' : 'Review generated workout'}
           <Icon name={showWorkout ? 'check' : 'arrow'} size={20} />
         </button>
+      </section>
+
+      <section
+        className="adaptive-coach"
+        aria-labelledby="adaptive-coach-title"
+      >
+        <div className="adaptive-coach__heading">
+          <div className="adaptive-coach__mark">
+            <Icon name="spark" size={20} />
+          </div>
+          <div>
+            <p className="overline">Adaptive Coach</p>
+            <h2 id="adaptive-coach-title">Check today’s readiness</h2>
+          </div>
+          <span>
+            {
+              sessionHistory.filter((item) => item.status === 'completed')
+                .length
+            }{' '}
+            local sessions
+          </span>
+        </div>
+        <p>
+          These signals adjust the existing 15, 30, 45, or Default workout. They
+          never cancel it or change it until you confirm.
+        </p>
+        <div className="readiness-grid">
+          {(
+            [
+              ['energy', 'Energy'],
+              ['sleep', 'Sleep'],
+              ['soreness', 'Soreness'],
+              ['motivation', 'Motivation'],
+            ] as const
+          ).map(([key, label]) => (
+            <label key={key}>
+              <span>{label}</span>
+              <select
+                value={readiness[key]}
+                onChange={(event) => {
+                  setReadiness({
+                    ...readiness,
+                    [key]: Number(event.target.value),
+                  });
+                  setReadinessApplied(false);
+                }}
+              >
+                {[1, 2, 3, 4, 5].map((value) => (
+                  <option key={value} value={value}>
+                    {value}/5
+                  </option>
+                ))}
+              </select>
+            </label>
+          ))}
+          <label>
+            <span>Joint discomfort</span>
+            <select
+              value={readiness.jointDiscomfort}
+              onChange={(event) => {
+                setReadiness({
+                  ...readiness,
+                  jointDiscomfort: event.target
+                    .value as ReadinessCheck['jointDiscomfort'],
+                });
+                setReadinessApplied(false);
+              }}
+            >
+              <option value="none">None</option>
+              <option value="mild">Mild</option>
+              <option value="moderate">Moderate</option>
+              <option value="severe">Severe</option>
+            </select>
+          </label>
+          <label>
+            <span>Time pressure</span>
+            <select
+              value={readiness.timePressure}
+              onChange={(event) => {
+                setReadiness({
+                  ...readiness,
+                  timePressure: event.target
+                    .value as ReadinessCheck['timePressure'],
+                });
+                setReadinessApplied(false);
+              }}
+            >
+              <option value="none">None</option>
+              <option value="some">Some</option>
+              <option value="high">High</option>
+            </select>
+          </label>
+        </div>
+        <div className="adaptive-coach__result">
+          <div>
+            <strong>
+              {readinessLevel() === 'ready'
+                ? 'Proceed as planned'
+                : readinessLevel() === 'moderate'
+                  ? 'Train with a small adjustment'
+                  : 'Keep the session, lower the demand'}
+            </strong>
+            <span>
+              Why: energy, sleep, soreness, joints, motivation, and available
+              time are evaluated together.
+            </span>
+          </div>
+          <button
+            type="button"
+            disabled={Boolean(pending) || readinessApplied}
+            onClick={applyReadiness}
+          >
+            {readinessApplied ? 'Applied' : 'Apply readiness'}
+          </button>
+        </div>
       </section>
 
       {showWorkout && (
@@ -481,9 +650,8 @@ export function TodayView({
       </section>
 
       <p className="phase-boundary-note">
-        Active logging, editing, rest, alternatives, combined supersets, notes,
-        Plate Math, demonstrations, and resume are live. Adaptive coaching
-        remains gated to Phase 6.
+        Readiness and adaptive coaching are live. Progress dashboards and the
+        deeper post-workout summary remain gated to Phase 7.
       </p>
 
       {pending && (

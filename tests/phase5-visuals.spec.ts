@@ -2,17 +2,16 @@ import { expect, test, type Page } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 
-const evidenceDirectory = process.env.CAPTURE_PHASE5_EVIDENCE
-  ? path.resolve('docs/screenshots/phase-5')
-  : path.resolve('test-results/phase5-visuals');
+const evidenceDirectory = process.env.CAPTURE_PHASE6_EVIDENCE
+  ? path.resolve('docs/screenshots/phase-6')
+  : path.resolve('test-results/phase6-visuals');
 
 async function startSyntheticWorkout(page: Page) {
   await page.goto('./', { waitUntil: 'domcontentloaded' });
   await page
     .getByRole('button', { name: 'Explore with a synthetic demo profile' })
     .click();
-  await page.getByRole('button', { name: 'Start workout' }).click();
-  await expect(page.getByText('Phase 5 live')).toBeVisible();
+  await expect(page.getByText('Phase 6 live')).toBeVisible();
 }
 
 async function saveViewport(page: Page, filename: string) {
@@ -22,13 +21,30 @@ async function saveViewport(page: Page, filename: string) {
   });
 }
 
-test('captures the Phase 5 mobile and desktop review evidence', async ({
+test('captures the Phase 6 mobile and desktop review evidence', async ({
   page,
 }) => {
   await mkdir(evidenceDirectory, { recursive: true });
   await page.setViewportSize({ width: 412, height: 915 });
   await startSyntheticWorkout(page);
+  await page.getByRole('combobox', { name: 'Energy' }).selectOption('1');
+  await page.getByRole('button', { name: 'Apply readiness' }).click();
+  await expect(page.getByRole('button', { name: 'Applied' })).toBeDisabled();
+  await page
+    .getByRole('heading', { name: 'Check today’s readiness' })
+    .scrollIntoViewIfNeeded();
+  await saveViewport(page, 'readiness-coach-412x915.png');
+  await page.getByRole('button', { name: 'Start workout' }).click();
+  await expect(page.getByText('Adaptive Coach')).toBeVisible();
+  await page.evaluate(() => window.scrollTo(0, 0));
   await saveViewport(page, 'active-workout-412x915.png');
+
+  await page.getByRole('button', { name: 'Apply easier targets' }).click();
+  await expect(
+    page.getByText(/Completed and manually corrected sets stay untouched/),
+  ).toBeVisible();
+  await saveViewport(page, 'coach-confirmation-412x915.png');
+  await page.getByRole('button', { name: 'Keep plan' }).click();
 
   await page.getByRole('button', { name: 'Alternatives' }).click();
   await expect(

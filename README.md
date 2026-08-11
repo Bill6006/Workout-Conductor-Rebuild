@@ -8,11 +8,11 @@ https://bill6006.github.io/Workout-Conductor-Rebuild/
 
 ## Current scope
 
-Phase 5 adds a premium, browser-local workout execution experience on top of the Phase 4 recalibration engine. The active screen now supports one-tap prefilled Weight/Reps/RIR logging, exact inline corrections, programmed rest, verified resume, exercise guides and Alternatives, warm-ups, drop sets, cue memory, Plate Math, and combined two-move supersets with separate durable records.
+Phase 6 adds a deterministic, browser-local Adaptive Coach over the workout generator, recalibration engine, and durable active-session record. It evaluates readiness and recent qualifying sessions, recommends concrete next targets, detects repeated stalls without punishing one bad set, interprets recovery and fatigue, and protects manually corrected records.
 
-The final move of the final superset round closes directly to the completion surface. Rest derives from a wall-clock target so temporary backgrounding and reload remain accurate, while pause time is excluded from workout elapsed time. Warm-ups are explicitly excluded from progression, PR, and working-volume evidence.
+The coach presents one prioritized recommendation and at most one main action. Swaps, deloads, volume changes, extra sets, and optional drop sets require athlete confirmation. Warm-ups, drop sets, and incomplete superset rounds are excluded from progression evidence.
 
-See [docs/active-workout.md](docs/active-workout.md) for the execution contract and [docs/phase-reports/PHASE_5.md](docs/phase-reports/PHASE_5.md) for acceptance evidence.
+See [docs/adaptive-coach.md](docs/adaptive-coach.md) for the coaching contract and [docs/phase-reports/PHASE_6.md](docs/phase-reports/PHASE_6.md) for acceptance evidence.
 
 ## Local development
 

@@ -7,6 +7,7 @@ import {
   ActiveSessionSchema,
   type ActiveSession,
   type ActiveSetRecord,
+  type ReadinessCheck,
   type SetSlot,
 } from './schema';
 
@@ -21,6 +22,8 @@ function sessionTimestamp(now: Date | string = new Date()) {
 export function createActiveSession(
   workout: GeneratedWorkout,
   now: Date | string = new Date(),
+  readiness?: ReadinessCheck,
+  trainingContext?: ActiveSession['trainingContext'],
 ): ActiveSession {
   const timestamp = sessionTimestamp(now);
   return ActiveSessionSchema.parse({
@@ -45,6 +48,23 @@ export function createActiveSession(
     acceptedAlternativeIds: [],
     skippedBlockIds: [],
     restTimer: null,
+    lastRestStartedAt: null,
+    lastRestTargetSeconds: null,
+    readiness: readiness ?? {
+      energy: 3,
+      soreness: 2,
+      sleep: 3,
+      jointDiscomfort: 'none',
+      motivation: 3,
+      timePressure: 'none',
+      checkedAt: timestamp,
+    },
+    sessionFeedback: null,
+    trainingContext: trainingContext ?? {
+      locationId: null,
+      locationKind: null,
+      equipmentIds: [],
+    },
     updatedAt: timestamp,
   });
 }
@@ -250,6 +270,19 @@ export function logSet(
     weight: values.weight,
     reps: values.reps,
     rir: values.rir,
+    tempo: 'controlled',
+    restSecondsTaken: session.lastRestStartedAt
+      ? Math.max(
+          0,
+          Math.round(
+            (new Date(timestamp).getTime() -
+              new Date(session.lastRestStartedAt).getTime()) /
+              1000,
+          ),
+        )
+      : null,
+    plannedRestSeconds: session.lastRestTargetSeconds,
+    painReported: false,
     completedAt: timestamp,
     editedAt: null,
     countsTowardProgression: slot.kind !== 'warmup',
