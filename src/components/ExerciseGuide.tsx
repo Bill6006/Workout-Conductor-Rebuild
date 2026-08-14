@@ -248,9 +248,14 @@ export function ExerciseGuide({ exercise }: { exercise: Exercise }) {
                   className="guide-play-button"
                   type="button"
                   aria-pressed={guidePlaying}
+                  disabled={reducedMotion}
                   onClick={() => setPlaying(!guidePlaying)}
                 >
-                  {guidePlaying ? 'Pause guide' : 'Play guide'}
+                  {reducedMotion
+                    ? 'Motion reduced'
+                    : guidePlaying
+                      ? 'Pause guide'
+                      : 'Play guide'}
                 </button>
                 <button
                   className="guide-swap-button"

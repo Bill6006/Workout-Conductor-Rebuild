@@ -407,5 +407,7 @@ test('custom media keeps a nonanimated four-phase tempo overview in reduced-moti
     'display',
     'none',
   );
-  await expect(guide.getByRole('button', { name: 'Play guide' })).toBeVisible();
+  await expect(
+    guide.getByRole('button', { name: 'Motion reduced' }),
+  ).toBeDisabled();
 });
