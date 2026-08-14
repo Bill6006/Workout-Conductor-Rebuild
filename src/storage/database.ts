@@ -463,6 +463,10 @@ export async function saveCustomMediaVerified(
   );
 }
 
+export async function loadCustomMedia(): Promise<CustomMediaBlob[]> {
+  return getAllRecords(storeNames.customMedia, CustomMediaBlobSchema);
+}
+
 export async function saveCoachTargetVerified(
   target: CoachTarget,
 ): Promise<CoachTarget> {

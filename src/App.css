@@ -3230,12 +3230,12 @@
 
 .guide-frame.is-playing i,
 .guide-stage.is-playing i {
-  animation: guide-scan 1.6s ease-in-out infinite alternate;
+  animation: guide-tempo var(--tempo-duration, 4s) linear infinite;
 }
 
-@keyframes guide-scan {
+@keyframes guide-tempo {
   from {
-    transform: scaleX(0.18);
+    transform: scaleX(0);
     opacity: 0.5;
   }
   to {
@@ -3320,6 +3320,35 @@
   font-size: 0.7rem;
   font-weight: 700;
   text-align: right;
+}
+
+.set-logger__targets {
+  display: grid;
+  justify-items: end;
+  gap: 3px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.set-logger__tempo {
+  color: #dcedc5;
+}
+
+.set-logger__tempo strong {
+  color: var(--accent);
+  font-size: inherit;
+}
+
+.set-logger__tempo small {
+  display: block;
+  max-width: 260px;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.58rem;
+  font-weight: 500;
+  line-height: 1.25;
 }
 
 .set-logger__current {
@@ -3882,6 +3911,72 @@
   color: var(--text);
   font: inherit;
   font-weight: 800;
+}
+
+.guide-media-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.guide-swap-button {
+  min-height: 44px;
+  margin-top: 8px;
+  padding: 0 14px;
+  border: 1px solid rgba(190, 255, 45, 0.36);
+  border-radius: 12px;
+  background: rgba(190, 255, 45, 0.08);
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.guide-media-status {
+  min-height: 1em;
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.65rem;
+  line-height: 1.35;
+}
+
+.workout-utility-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.workout-utility-sheet .sheet-heading {
+  margin-bottom: 2px;
+}
+
+.workout-utility-sheet label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.workout-utility-sheet textarea,
+.workout-utility-sheet input {
+  width: 100%;
+  min-height: 52px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #0b100d;
+  color: var(--text);
+  font: inherit;
+}
+
+.workout-utility-sheet textarea {
+  min-height: 140px;
+  resize: vertical;
+}
+
+.workout-utility-sheet > .primary-button {
+  width: 100%;
 }
 
 .guide-facts {

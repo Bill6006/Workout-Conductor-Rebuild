@@ -73,12 +73,19 @@ describe('Phase 8 active-workout navigation enhancement', () => {
         screen.getByRole('textbox', { name: /Grip, seat height/ }),
       ).toHaveFocus(),
     );
+    const noteDialog = screen.getByRole('dialog', { name: 'Exercise note' });
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(noteDialog).not.toBeInTheDocument();
     fireEvent.click(within(shortcuts).getByRole('button', { name: 'Plates' }));
     await waitFor(() =>
       expect(
         screen.getByRole('spinbutton', { name: 'Target weight' }),
       ).toHaveFocus(),
     );
+    expect(
+      screen.getByRole('dialog', { name: 'Plate Math' }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
 
     const currentName = document.getElementById(
       'active-exercise-title',
@@ -102,6 +109,30 @@ describe('Phase 8 active-workout navigation enhancement', () => {
       await screen.findByText(/returned to the current position/),
     ).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Edit' })).toHaveLength(1);
+  });
+
+  it('skips one set from Set options without duplicating exercise skip controls', async () => {
+    render(<Harness initial={session()} />);
+    expect(screen.queryByText('Workout list')).not.toBeInTheDocument();
+    expect(screen.queryByText('Swipe-free preview')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        'Workout started and protected by verified local saves.',
+      ),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Set options' }));
+    const options = screen.getByRole('dialog', { name: 'Set options' });
+    expect(
+      within(options).queryByRole('button', { name: 'Skip exercise for now' }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(within(options).getByRole('button', { name: 'Skip set' }));
+    expect(
+      await screen.findByText(/No completed record was created/),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Edit' }),
+    ).not.toBeInTheDocument();
   });
 
   it('lists unfinished exercises and records confirmed omissions before celebrating once', async () => {

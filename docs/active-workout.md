@@ -18,6 +18,8 @@ The focused session-state benchmark keeps a normal set mutation below 100 ms. Th
 
 Completed sets require 1–200 whole repetitions at the interaction, edit, persisted-schema, and import boundaries. Each logical slot has a deterministic identity, the session schema rejects duplicate slots, stale submissions are no-ops, and the shared action latch stays closed while the next form renders so a double-click cannot advance two sets. Logger defaults are tied to the exact exercise and slot, so a replacement cannot inherit stale values and warm-ups use their own RIR target.
 
+Set Options contains **Skip set**, distinct from the sticky **Skip for now** exercise action. A skipped set stores its deterministic slot identity, creates no completed record, and advances exactly one warm-up, working, grouped-round move, or drop-set slot. This survives reload and cannot add volume, PR, or progression evidence.
+
 ## Durable session model
 
 An active session stores the immutable generated prescription plus append-only set records, warm-up choices, exercise cue memory, accepted alternatives, pinned exercise IDs, skipped blocks, pause timing, and a wall-clock rest target. The database upgrade adds `activeSessions` and `exerciseNotes` stores. Rapid critical writes enter a serialized verification queue, then are read back and schema-validated before they are considered saved; the UI rolls back the latest optimistic update if its verification fails.
@@ -43,7 +45,11 @@ Pause freezes workout elapsed time and persists the current position. Resume exc
 
 ## Utilities and custom content
 
-Exercise notes are saved independently and copied into the active session as cue memory. Plate Math explains per-side plates for barbells, per-hand dumbbell loading, and non-plate load types without pretending every exercise uses a barbell.
+Exercise notes are saved independently and copied into the active session as cue memory. Note and Plate Math open as focused sheets from the sticky navigator; their former lower-page dropdowns, duplicate workout list, next preview, and startup-save banner are intentionally removed. Plate Math explains per-side plates for barbells, per-hand dumbbell loading, and non-plate load types without pretending every exercise uses a barbell.
+
+The built-in exercise-detail sheet accepts a user-selected GIF of up to 50 MB. The verified local record is keyed to that exercise, survives reload, participates in protected backup/restore, and remains selected until replaced. Non-GIF, empty, and oversized files are rejected without replacing the existing guide.
+
+Every production exercise receives one evidence-informed starting tempo derived from its movement pattern and training role. The UI explains the four-phase code, displays it immediately above the set target, and runs the movement-guide progress indicator over the same cycle. The recommendation is deliberately presented as a starting point because the literature supports a broad range of controlled repetition durations rather than a uniquely optimal tempo: [Schoenfeld et al. 2015](https://pubmed.ncbi.nlm.nih.gov/25601394/), [Wilk et al. 2021](https://pubmed.ncbi.nlm.nih.gov/34043184/), and the [2026 ACSM position stand](https://pubmed.ncbi.nlm.nih.gov/41843416/).
 
 The active-session schema can carry validated custom-exercise snapshots, including user-owned image/video metadata and instructions. `CustomExerciseGuide` renders that local content without a remote hotlink. Creating and backing up custom media blobs remains part of the Phase 8 data-safety workflow.
 

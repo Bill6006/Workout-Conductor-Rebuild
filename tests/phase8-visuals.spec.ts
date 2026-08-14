@@ -42,7 +42,7 @@ test('captures the final mobile data-safety and demonstration evidence', async (
   await page
     .getByRole('button', { name: 'Explore with a synthetic demo profile' })
     .click();
-  await expect(page.getByText('WC-P8UXR1-0814')).toBeVisible();
+  await expect(page.getByText('WC-P8UXR2-0814')).toBeVisible();
   await dismissTransientBanners(page);
   await saveViewport(page, 'final-today-412x915.png');
 

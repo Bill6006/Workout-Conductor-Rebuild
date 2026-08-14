@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
 import { equipmentById } from '../catalog/equipment';
 import { exerciseById } from '../catalog/exercises';
 import type { Exercise } from '../catalog/schema';
@@ -42,12 +48,14 @@ import {
   returnToExercise,
   resumeSession,
   setWarmupChoice,
+  skipCurrentSet,
   undoLastSet,
   unfinishedExercises,
   workoutExerciseQueue,
   workoutCompletion,
   type WorkoutExerciseQueueItem,
 } from '../features/activeWorkout/session';
+import { recommendTempo } from '../features/activeWorkout/tempo';
 import {
   loadExerciseNotes,
   saveExerciseNoteVerified,
@@ -197,6 +205,56 @@ function ExerciseQueueSheet({
   );
 }
 
+function WorkoutUtilitySheet({
+  title,
+  eyebrow,
+  onClose,
+  children,
+}: {
+  title: string;
+  eyebrow: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const sheetRef = useRef<HTMLElement>(null);
+  const titleId = `workout-utility-${title.toLowerCase().replaceAll(' ', '-')}`;
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+  useEffect(() => {
+    sheetRef.current?.querySelector<HTMLElement>('textarea, input')?.focus();
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onCloseRef.current();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, []);
+  return (
+    <div className="sheet-backdrop">
+      <section
+        ref={sheetRef}
+        className="native-sheet workout-utility-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+      >
+        <div className="sheet-handle" />
+        <div className="sheet-heading">
+          <div>
+            <p className="eyebrow">{eyebrow}</p>
+            <h2 id={titleId}>{title}</h2>
+          </div>
+          <button type="button" onClick={onClose}>
+            Close
+          </button>
+        </div>
+        {children}
+      </section>
+    </div>
+  );
+}
+
 function CompletionCelebration() {
   return (
     <div className="completion-celebration" role="status" aria-live="polite">
@@ -278,6 +336,8 @@ export function ActiveWorkoutView({
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [showOptions, setShowOptions] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
+  const [showNote, setShowNote] = useState(false);
+  const [showPlateMath, setShowPlateMath] = useState(false);
   const [showFinishWarning, setShowFinishWarning] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [showAlternatives, setShowAlternatives] = useState(false);
@@ -292,8 +352,6 @@ export function ActiveWorkoutView({
   const navigationLock = useRef(false);
   const finishLock = useRef(false);
   const currentExerciseRef = useRef<HTMLElement>(null);
-  const noteRef = useRef<HTMLDetailsElement>(null);
-  const plateMathRef = useRef<HTMLDetailsElement>(null);
   const finishWarningPrimaryRef = useRef<HTMLButtonElement>(null);
   const [pendingCoachAction, setPendingCoachAction] =
     useState<CoachAction | null>(null);
@@ -313,6 +371,7 @@ export function ActiveWorkoutView({
     : session.workout.blocks[session.currentBlockIndex];
   const move = prescriptionForSlot(block, slot?.prescriptionId);
   const exercise = move ? exerciseById.get(move.exerciseId) : undefined;
+  const tempo = exercise ? recommendTempo(exercise) : undefined;
   const customExercise = move
     ? session.customExerciseSnapshots[move.exerciseId]
     : undefined;
@@ -426,16 +485,6 @@ export function ActiveWorkoutView({
     });
   }
 
-  function openUtility(ref: { current: HTMLDetailsElement | null }) {
-    if (!ref.current) return;
-    ref.current.open = true;
-    scrollTo(ref);
-    window.setTimeout(
-      () => ref.current?.querySelector<HTMLElement>('textarea, input')?.focus(),
-      250,
-    );
-  }
-
   async function handleSkipForNow() {
     if (!slot || navigationLock.current || session.status !== 'active') return;
     navigationLock.current = true;
@@ -450,6 +499,23 @@ export function ActiveWorkoutView({
       // Hold the navigation boundary through the browser's complete
       // double-click window so the second activation cannot land on the next
       // exercise after a very fast verified write.
+      await new Promise((resolve) => window.setTimeout(resolve, 450));
+      navigationLock.current = false;
+      setNavigationPending(false);
+    }
+  }
+
+  async function handleSkipSet() {
+    if (!slot || navigationLock.current || session.status !== 'active') return;
+    navigationLock.current = true;
+    setNavigationPending(true);
+    try {
+      const saved = await changeSession(
+        skipCurrentSet(session),
+        `${slot.kind === 'warmup' ? 'Warm-up' : slot.kind === 'drop' ? 'Drop set' : 'Set'} skipped. No completed record was created.`,
+      );
+      if (saved) setShowOptions(false);
+    } finally {
       await new Promise((resolve) => window.setTimeout(resolve, 450));
       navigationLock.current = false;
       setNavigationPending(false);
@@ -581,7 +647,7 @@ export function ActiveWorkoutView({
       note: noteDraft.trim(),
       updatedAt: timestamp,
     });
-    changeSession(
+    const saved = await changeSession(
       ActiveSessionSchema.parse({
         ...session,
         notesByExerciseId: {
@@ -592,6 +658,7 @@ export function ActiveWorkoutView({
       }),
       'Exercise note saved and remembered for the next session.',
     );
+    if (saved) setShowNote(false);
   }
 
   function replaceCurrentExercise(replacementId: string) {
@@ -1027,7 +1094,7 @@ export function ActiveWorkoutView({
           <span className="status-pill">
             <span /> Phase 8 UX enhancement
           </span>
-          <span className="build-label">WC-P8UXR1-0814</span>
+          <span className="build-label">WC-P8UXR2-0814</span>
         </div>
         <WorkoutNavigator
           canAct={false}
@@ -1150,8 +1217,6 @@ export function ActiveWorkoutView({
     );
   }
   const warmupChoice = session.warmupSelections[move.prescriptionId];
-  const nextBlock = session.workout.blocks[slot.blockIndex + 1];
-
   return (
     <>
       <header className="active-workout-header">
@@ -1174,7 +1239,7 @@ export function ActiveWorkoutView({
         <span className="status-pill">
           <span /> Phase 8 UX enhancement
         </span>
-        <span className="build-label">WC-P8UXR1-0814</span>
+        <span className="build-label">WC-P8UXR2-0814</span>
       </div>
 
       <WorkoutNavigator
@@ -1182,8 +1247,8 @@ export function ActiveWorkoutView({
         busy={navigationPending}
         onCurrent={() => scrollTo(currentExerciseRef)}
         onQueue={() => setShowQueue(true)}
-        onNote={() => openUtility(noteRef)}
-        onPlateMath={() => openUtility(plateMathRef)}
+        onNote={() => setShowNote(true)}
+        onPlateMath={() => setShowPlateMath(true)}
         onSkip={() => void handleSkipForNow()}
       />
 
@@ -1339,10 +1404,11 @@ export function ActiveWorkoutView({
         {warmupChoice === 'pending' && move.warmupSets.length > 0 && (
           <section className="warmup-choice" aria-label="Warm-up choice">
             <div>
-              <strong>Calculated ramp available</strong>
+              <strong>Optional warm-up sets</strong>
               <span>
-                {move.warmupSets.length} non-working sets · excluded from PRs
-                and volume
+                {move.warmupSets.length} lighter set
+                {move.warmupSets.length === 1 ? '' : 's'} before working sets ·
+                excluded from PRs and volume
               </span>
             </div>
             <button
@@ -1350,11 +1416,11 @@ export function ActiveWorkoutView({
               onClick={() =>
                 changeSession(
                   setWarmupChoice(session, move.prescriptionId, 'added'),
-                  'Warm-up ramp added.',
+                  'Warm-up sets added.',
                 )
               }
             >
-              Add ramp
+              Add warm-up
             </button>
             <button
               type="button"
@@ -1365,7 +1431,7 @@ export function ActiveWorkoutView({
                 )
               }
             >
-              Skip
+              Skip warm-up
             </button>
           </section>
         )}
@@ -1383,6 +1449,7 @@ export function ActiveWorkoutView({
           }
           targetReps={slot.targetReps}
           targetRir={slot.targetRir}
+          tempo={tempo}
           units={session.weightUnit}
           initialValues={initialSetValues(session.records, move, slot)}
           disabled={session.status !== 'active' || setSubmissionPending}
@@ -1509,89 +1576,6 @@ export function ActiveWorkoutView({
         )}
       </section>
 
-      <section className="workout-utility-grid">
-        <details ref={noteRef} className="workout-utility-card">
-          <summary>Exercise note</summary>
-          <label>
-            <span>Grip, seat height, setup, or form cue</span>
-            <textarea
-              value={noteDraft}
-              maxLength={500}
-              onChange={(event) => setNoteDraft(event.target.value)}
-              placeholder="Example: neutral grip, bench notch 3"
-            />
-          </label>
-          <button type="button" onClick={() => void saveNote()}>
-            Save cue memory
-          </button>
-        </details>
-
-        <details ref={plateMathRef} className="workout-utility-card">
-          <summary>Plate Math</summary>
-          <label>
-            <span>Target weight</span>
-            <input
-              type="number"
-              inputMode="decimal"
-              min="0"
-              step="0.5"
-              value={plateWeight}
-              onChange={(event) => setPlateWeight(Number(event.target.value))}
-            />
-          </label>
-          <strong>{plateResult?.label ?? 'Custom loading instructions'}</strong>
-          {plateResult && plateResult.remainder > 0 && (
-            <span>
-              Closest with inventory: {plateResult.remainder} lb per side
-              remains.
-            </span>
-          )}
-          {exercise && (
-            <small>
-              {exercise.plateMath.eachHand
-                ? 'Weight is clarified for each hand.'
-                : equipmentById.get(exercise.equipment.required[0])?.name}
-            </small>
-          )}
-        </details>
-      </section>
-
-      <section
-        className="active-workout-list"
-        aria-labelledby="active-list-title"
-      >
-        <div className="section-heading section-heading--compact">
-          <div>
-            <p className="eyebrow">Workout list</p>
-            <h2 id="active-list-title">One row per block</h2>
-          </div>
-        </div>
-        {session.workout.blocks.map((item, index) => (
-          <div
-            key={item.blockId}
-            className={`active-list-row${index === slot.blockIndex ? ' is-current' : ''}${index < slot.blockIndex ? ' is-complete' : ''}`}
-          >
-            <span>{String(index + 1).padStart(2, '0')}</span>
-            <strong>{item.canonicalRow}</strong>
-            <small>
-              {index < slot.blockIndex
-                ? 'Complete'
-                : index === slot.blockIndex
-                  ? 'Current'
-                  : 'Up next'}
-            </small>
-          </div>
-        ))}
-      </section>
-
-      {nextBlock && (
-        <section className="next-exercise-card">
-          <span>Next</span>
-          <strong>{nextBlock.canonicalRow}</strong>
-          <small>Swipe-free preview</small>
-        </section>
-      )}
-
       {session.status === 'paused' && (
         <div className="sheet-backdrop">
           <section
@@ -1649,9 +1633,9 @@ export function ActiveWorkoutView({
             <button
               type="button"
               disabled={navigationPending}
-              onClick={() => void handleSkipForNow()}
+              onClick={() => void handleSkipSet()}
             >
-              Skip exercise for now
+              Skip set
             </button>
             <button
               type="button"
@@ -1675,6 +1659,65 @@ export function ActiveWorkoutView({
           onReturn={(id) => void handleReturnToExercise(id)}
           onClose={() => setShowQueue(false)}
         />
+      )}
+
+      {showNote && (
+        <WorkoutUtilitySheet
+          eyebrow="Current exercise"
+          title="Exercise note"
+          onClose={() => setShowNote(false)}
+        >
+          <label>
+            <span>Grip, seat height, setup, or form cue</span>
+            <textarea
+              value={noteDraft}
+              maxLength={500}
+              onChange={(event) => setNoteDraft(event.target.value)}
+              placeholder="Example: neutral grip, bench notch 3"
+            />
+          </label>
+          <button
+            className="primary-button"
+            type="button"
+            onClick={() => void saveNote()}
+          >
+            Save cue memory
+          </button>
+        </WorkoutUtilitySheet>
+      )}
+
+      {showPlateMath && (
+        <WorkoutUtilitySheet
+          eyebrow="Loading helper"
+          title="Plate Math"
+          onClose={() => setShowPlateMath(false)}
+        >
+          <label>
+            <span>Target weight</span>
+            <input
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="0.5"
+              value={plateWeight}
+              onChange={(event) => setPlateWeight(Number(event.target.value))}
+            />
+          </label>
+          <strong>{plateResult?.label ?? 'Custom loading instructions'}</strong>
+          {plateResult && plateResult.remainder > 0 && (
+            <span>
+              Closest with inventory: {plateResult.remainder} lb per side
+              remains.
+            </span>
+          )}
+          {exercise && (
+            <small>
+              {exercise.plateMath.eachHand
+                ? 'Weight is clarified for each hand.'
+                : equipmentById.get(exercise.equipment.required[0])?.name}
+            </small>
+          )}
+        </WorkoutUtilitySheet>
       )}
 
       {showAlternatives && (

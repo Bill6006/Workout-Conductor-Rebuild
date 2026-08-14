@@ -215,7 +215,6 @@ export default function App() {
     setStorageStatus(
       'Active workout created, read back, and verified locally.',
     );
-    setAnnouncement('Workout started and protected by verified local saves.');
   }
 
   async function saveWorkout(
@@ -288,7 +287,7 @@ export default function App() {
         </div>
         <span className="loading-pulse" />
         <p>Opening your private training space…</p>
-        <small>WC-P8UXR1-0814</small>
+        <small>WC-P8UXR2-0814</small>
       </div>
     );
   }

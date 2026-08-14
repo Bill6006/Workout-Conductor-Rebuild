@@ -208,6 +208,8 @@ describe('local-first storage and data safety', () => {
         mimeType: 'image/webp',
         dataUrl: 'data:image/webp;base64,AAAA',
         byteSize: 4,
+        exerciseId: 'pull-up',
+        purpose: 'exercise-demonstration',
         createdAt: '2026-08-10T17:00:00.000Z',
       }),
     );
@@ -253,6 +255,8 @@ describe('local-first storage and data safety', () => {
     });
     expect(restored[storeNames.customMedia][0]?.value).toMatchObject({
       dataUrl: 'data:image/webp;base64,AAAA',
+      exerciseId: 'pull-up',
+      purpose: 'exercise-demonstration',
     });
   });
 

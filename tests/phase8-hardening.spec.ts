@@ -5,7 +5,7 @@ async function openDemo(page: import('@playwright/test').Page) {
   await page
     .getByRole('button', { name: 'Explore with a synthetic demo profile' })
     .click();
-  await expect(page.getByText('WC-P8UXR1-0814')).toBeVisible();
+  await expect(page.getByText('WC-P8UXR2-0814')).toBeVisible();
 }
 
 test('QA-P8-002/003/004/005/009/010 hardens readiness and active logging', async ({
@@ -40,7 +40,7 @@ test('QA-P8-002/003/004/005/009/010 hardens readiness and active logging', async
   await expect(guide).toBeHidden();
   await expect(guideOpener).toBeFocused();
 
-  await page.getByRole('button', { name: 'Add ramp' }).click();
+  await page.getByRole('button', { name: 'Add warm-up' }).click();
   await expect(page.getByRole('spinbutton', { name: 'RIR' })).toHaveValue('4');
   await page.getByRole('spinbutton', { name: 'Reps' }).fill('0');
   await expect(page.getByRole('button', { name: 'Log set' })).toBeDisabled();
@@ -51,7 +51,7 @@ test('QA-P8-002/003/004/005/009/010 hardens readiness and active logging', async
   });
   await expect(page.locator('.completed-set-row')).toHaveCount(1);
 
-  await page.getByText('Plate Math', { exact: true }).click();
+  await page.getByRole('button', { name: 'Plates' }).click();
   await page.getByRole('spinbutton', { name: 'Target weight' }).fill('-5');
   await expect(
     page.getByText('Enter a nonnegative target weight.'),
@@ -79,7 +79,7 @@ test('QA-P8-001/007 gives actionable onboarding validation and preserves decimal
   await expect(bodyweight).toBeFocused();
   await bodyweight.fill('182.5');
   await page.getByRole('button', { name: 'Finish setup' }).click();
-  await expect(page.getByText('WC-P8UXR1-0814')).toBeVisible();
+  await expect(page.getByText('WC-P8UXR2-0814')).toBeVisible();
 
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.getByRole('textbox', { name: 'Profile name' }).fill('Decimal QA');

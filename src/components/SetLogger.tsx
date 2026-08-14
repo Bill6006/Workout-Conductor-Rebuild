@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Icon } from './Icon';
 import { MAX_SET_REPS } from '../features/activeWorkout/schema';
+import type { TempoRecommendation } from '../features/activeWorkout/tempo';
 
 type SetValues = { weight: number; reps: number; rir: number };
 
@@ -10,6 +11,7 @@ type SetLoggerProps = {
   setLabel: string;
   targetReps: string;
   targetRir: number;
+  tempo?: TempoRecommendation;
   units: 'lb' | 'kg';
   initialValues: SetValues;
   submitLabel?: string;
@@ -23,6 +25,7 @@ export function SetLogger({
   setLabel,
   targetReps,
   targetRir,
+  tempo,
   units,
   initialValues,
   submitLabel = 'Log set',
@@ -67,9 +70,17 @@ export function SetLogger({
           <span className="set-logger__current">Current</span>
           <strong>{setLabel}</strong>
         </div>
-        <span>
-          Target {targetReps} · {targetRir} RIR
-        </span>
+        <div className="set-logger__targets">
+          {tempo && (
+            <span className="set-logger__tempo" title={tempo.evidenceNote}>
+              Recommended tempo · <strong>{tempo.code}</strong>
+              <small>{tempo.cue}</small>
+            </span>
+          )}
+          <span>
+            Target {targetReps} · {targetRir} RIR
+          </span>
+        </div>
       </div>
       <div className="set-logger__fields">
         <label>

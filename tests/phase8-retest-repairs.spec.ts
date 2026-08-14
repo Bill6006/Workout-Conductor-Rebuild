@@ -5,7 +5,7 @@ async function openDemo(page: Page) {
   await page
     .getByRole('button', { name: 'Explore with a synthetic demo profile' })
     .click();
-  await expect(page.getByText('WC-P8UXR1-0814')).toBeVisible();
+  await expect(page.getByText('WC-P8UXR2-0814')).toBeVisible();
 }
 
 async function rapidSetActivation(page: Page) {
@@ -40,7 +40,7 @@ test('QA-P8-005 latches warm-up, ordinary, and superset set creation plus comple
   await expect(page.getByText(/Recalibrated to 15 min/)).toBeVisible();
   await page.getByRole('button', { name: 'Start workout' }).click();
 
-  await page.getByRole('button', { name: 'Add ramp' }).click();
+  await page.getByRole('button', { name: 'Add warm-up' }).click();
   await rapidSetActivation(page);
   await page.waitForTimeout(550);
   await expect(page.locator('.completed-set-row')).toHaveCount(1);
@@ -57,7 +57,7 @@ test('QA-P8-005 latches warm-up, ordinary, and superset set creation plus comple
 
   await skipCurrentExercise(page);
   const optionalWarmupSkip = page.getByRole('button', {
-    name: 'Skip',
+    name: 'Skip warm-up',
     exact: true,
   });
   if (await optionalWarmupSkip.isVisible()) await optionalWarmupSkip.click();
@@ -84,7 +84,7 @@ test('QA-P8R-011 preserves an active lb load and converts history after a kg pre
 }) => {
   await openDemo(page);
   await page.getByRole('button', { name: 'Start workout' }).click();
-  await page.getByRole('button', { name: 'Skip', exact: true }).click();
+  await page.getByRole('button', { name: 'Skip warm-up' }).click();
   await page.getByRole('spinbutton', { name: 'Weight' }).fill('43');
   await page.getByRole('spinbutton', { name: 'Reps' }).fill('9');
   await page.getByRole('button', { name: 'Log set' }).click();

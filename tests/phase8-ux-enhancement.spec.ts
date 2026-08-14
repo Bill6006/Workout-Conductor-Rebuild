@@ -5,7 +5,7 @@ async function openActiveWorkout(page: Page) {
   await page
     .getByRole('button', { name: 'Explore with a synthetic demo profile' })
     .click();
-  await expect(page.getByText('WC-P8UXR1-0814')).toBeVisible();
+  await expect(page.getByText('WC-P8UXR2-0814')).toBeVisible();
   await page
     .getByRole('combobox', { name: 'Workout length' })
     .selectOption('15');
@@ -124,10 +124,12 @@ test('sticky icon navigator is keyboard and mobile/landscape accessible', async 
   await expect(
     page.getByRole('textbox', { name: /Grip, seat height/ }),
   ).toBeFocused();
+  await page.keyboard.press('Escape');
   await shortcuts.getByRole('button', { name: 'Plates' }).click();
   await expect(
     page.getByRole('spinbutton', { name: 'Target weight' }),
   ).toBeFocused();
+  await page.keyboard.press('Escape');
   await shortcuts.getByRole('button', { name: 'Queue' }).click();
   await expect(page.getByRole('button', { name: 'Close' })).toBeFocused();
   await page.keyboard.press('Escape');
@@ -165,7 +167,7 @@ test('skip-for-now survives verified reload, pause/resume, and returns without l
   await page.getByRole('button', { name: 'Skip for now' }).click();
   await page.waitForTimeout(100);
   await expect(page.locator('.active-exercise-card--superset')).toBeVisible();
-  const warmupSkip = page.getByRole('button', { name: 'Skip', exact: true });
+  const warmupSkip = page.getByRole('button', { name: 'Skip warm-up' });
   if (await warmupSkip.isVisible()) await warmupSkip.click();
   await page.getByRole('button', { name: 'Log set' }).click();
   await page.waitForTimeout(550);
@@ -247,4 +249,83 @@ test('reduced motion replaces animated confetti with the nonanimated completion 
     'animation-name',
     'none',
   );
+});
+
+test('utility sheets, one-set skip, tempo guide, and persistent GIF replace the long lower-page controls', async ({
+  page,
+}) => {
+  await openActiveWorkout(page);
+  await expect(page.getByText('Workout list')).toHaveCount(0);
+  await expect(page.getByText('Swipe-free preview')).toHaveCount(0);
+  await expect(
+    page.getByText('Workout started and protected by verified local saves.'),
+  ).toHaveCount(0);
+
+  const logger = page.getByRole('form', { name: /logger for/ });
+  await expect(logger.getByText(/Recommended tempo/)).toBeVisible();
+  const tempoPrecedesTarget = await logger.evaluate((element) => {
+    const tempo = element.querySelector('.set-logger__tempo');
+    const target = tempo?.parentElement?.lastElementChild;
+    return Boolean(
+      tempo &&
+      target &&
+      tempo.compareDocumentPosition(target) & Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  });
+  expect(tempoPrecedesTarget).toBe(true);
+
+  await page.getByRole('button', { name: 'Note' }).click();
+  await expect(
+    page.getByRole('dialog', { name: 'Exercise note' }),
+  ).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Plates' }).click();
+  await expect(page.getByRole('dialog', { name: 'Plate Math' })).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  await page.getByRole('button', { name: 'Set options' }).click();
+  const options = page.getByRole('dialog', { name: 'Set options' });
+  await expect(options.getByRole('button', { name: 'Skip set' })).toBeVisible();
+  await expect(
+    options.getByRole('button', { name: 'Skip exercise for now' }),
+  ).toHaveCount(0);
+  await options.getByRole('button', { name: 'Skip set' }).evaluate((button) => {
+    button.click();
+    button.click();
+  });
+  await expect(
+    page.getByText(/No completed record was created/).first(),
+  ).toBeVisible();
+  await expect(page.locator('.completed-set-row')).toHaveCount(0);
+
+  const guideOpener = page.getByRole('button', {
+    name: /Open demonstration for/,
+  });
+  await guideOpener.click();
+  const guide = page.getByRole('dialog', { name: /.+/ });
+  await guide.getByLabel(/Upload a custom GIF for/).setInputFiles({
+    name: 'my-exercise.gif',
+    mimeType: 'image/gif',
+    buffer: Buffer.from('GIF89a'),
+  });
+  await expect(
+    guide.getByText(/Custom GIF saved and verified locally/),
+  ).toBeVisible();
+  await expect(guide.getByRole('button', { name: 'Swap GIF' })).toBeVisible();
+  await expect(guide.locator('.guide-stage img')).toHaveAttribute(
+    'src',
+    /^data:image\/gif/,
+  );
+  await expect(guide.locator('.guide-stage i')).toHaveCSS(
+    'animation-duration',
+    '4s',
+  );
+  await guide.getByRole('button', { name: 'Close' }).click();
+
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: 'Workout', exact: true }).click();
+  await page.getByRole('button', { name: /Open demonstration for/ }).click();
+  await expect(
+    page.getByRole('dialog').locator('.guide-stage img'),
+  ).toHaveAttribute('src', /^data:image\/gif/);
 });

@@ -8,6 +8,7 @@ const customMediaTypes = [
   'image/jpeg',
   'image/png',
   'image/webp',
+  'image/gif',
   'video/mp4',
   'video/webm',
 ] as const;
@@ -18,6 +19,8 @@ export const CustomMediaBlobSchema = z.object({
   mimeType: z.enum(customMediaTypes),
   dataUrl: z.string().startsWith('data:'),
   byteSize: z.number().int().positive().max(50_000_000),
+  exerciseId: z.string().min(1).optional(),
+  purpose: z.literal('exercise-demonstration').optional(),
   createdAt: z.string().datetime(),
 });
 

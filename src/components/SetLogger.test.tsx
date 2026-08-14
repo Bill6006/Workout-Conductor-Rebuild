@@ -10,6 +10,12 @@ function renderLogger(onSubmit = vi.fn()) {
       setLabel="Set 1"
       targetReps="8–12"
       targetRir={2}
+      tempo={{
+        code: '3–0–1–0',
+        cue: '3 sec lower · no pause · 1 sec lift · smooth turnaround',
+        cycleSeconds: 4,
+        evidenceNote: 'Evidence-informed starting point.',
+      }}
       units="kg"
       initialValues={{ weight: 40, reps: 8, rir: 2 }}
       onSubmit={onSubmit}
@@ -19,6 +25,16 @@ function renderLogger(onSubmit = vi.fn()) {
 }
 
 describe('Phase 8 set submission hardening', () => {
+  it('shows the recommended tempo above the working target', () => {
+    renderLogger();
+    const tempo = screen.getByText(/Recommended tempo/);
+    const target = screen.getByText('Target 8–12 · 2 RIR');
+    expect(tempo).toBeVisible();
+    expect(
+      tempo.compareDocumentPosition(target) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it('rejects zero repetitions before persistence', () => {
     const onSubmit = renderLogger();
     fireEvent.change(screen.getByRole('spinbutton', { name: 'Reps' }), {

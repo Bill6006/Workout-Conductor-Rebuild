@@ -22,6 +22,7 @@ import {
   resumeSession,
   setWarmupChoice,
   skipCurrentBlock,
+  skipCurrentSet,
   undoLastSet,
   workoutCompletion,
   workoutExerciseQueue,
@@ -82,6 +83,74 @@ describe('Phase 5 durable active workout session', () => {
       startedAt,
     );
     expect(nextSetSlot(skipped)?.kind).toBe('working');
+  });
+
+  it('skips exactly the current set without creating a completed record', () => {
+    const session = createActiveSession(generated(), startedAt);
+    const first = nextSetSlot(session)!;
+    const skipped = skipCurrentSet(session, '2026-08-10T18:00:01.000Z');
+
+    expect(skipped.records).toEqual([]);
+    expect(skipped.skippedSetKeys).toHaveLength(1);
+    expect(nextSetSlot(skipped)).toMatchObject({
+      prescriptionId: first.prescriptionId,
+      setIndex: first.setIndex + 1,
+    });
+    expect(ActiveSessionSchema.parse(structuredClone(skipped))).toEqual(
+      skipped,
+    );
+  });
+
+  it('persists skipped warm-ups and advances into working sets', () => {
+    const session = createActiveSession(generated(), startedAt);
+    const first = nextSetSlot(session)!;
+    const withWarmups = setWarmupChoice(
+      session,
+      first.prescriptionId,
+      'added',
+      startedAt,
+    );
+    expect(nextSetSlot(withWarmups)?.kind).toBe('warmup');
+
+    const skipped = skipCurrentSet(withWarmups, startedAt);
+    const reloaded = ActiveSessionSchema.parse(structuredClone(skipped));
+    expect(reloaded.records).toEqual([]);
+    expect(nextSetSlot(reloaded)?.kind).toBe(
+      first &&
+        generated()
+          .blocks.flatMap((block) => blockMoves(block))
+          .find((move) => move.prescriptionId === first.prescriptionId)!
+          .warmupSets.length > 1
+        ? 'warmup'
+        : 'working',
+    );
+  });
+
+  it('advances a skipped superset set to its partner without losing the round', () => {
+    const workout = generated();
+    const groupIndex = workout.blocks.findIndex(
+      (block) => block.kind === 'superset' || block.kind === 'circuit',
+    );
+    expect(groupIndex).toBeGreaterThanOrEqual(0);
+    const deferredBeforeGroup = workout.blocks
+      .slice(0, groupIndex)
+      .flatMap(blockMoves)
+      .map((move) => move.prescriptionId);
+    let current = ActiveSessionSchema.parse({
+      ...createActiveSession(workout, startedAt),
+      currentBlockIndex: groupIndex,
+      deferredPrescriptionIds: deferredBeforeGroup,
+    });
+    const first = nextSetSlot(current)!;
+    current = skipCurrentSet(current, startedAt);
+    const partner = nextSetSlot(current)!;
+    expect(partner.blockId).toBe(first.blockId);
+    expect(partner.roundIndex).toBe(first.roundIndex);
+    expect(partner.moveIndex).not.toBe(first.moveIndex);
+    expect(current.records).toEqual([]);
+
+    const reloaded = ActiveSessionSchema.parse(structuredClone(current));
+    expect(nextSetSlot(reloaded)).toEqual(partner);
   });
 
   it('logs a normal prefilled set well inside the 100 ms response target', () => {

@@ -46,7 +46,7 @@ describe('Phase 8 final acceptance', () => {
     await openSyntheticDemo();
 
     expect(screen.getByText('Phase 8 UX enhancement')).toBeInTheDocument();
-    expect(screen.getByText('WC-P8UXR1-0814')).toBeInTheDocument();
+    expect(screen.getByText('WC-P8UXR2-0814')).toBeInTheDocument();
     expect(screen.getByText('Adaptive Coach')).toBeInTheDocument();
     expect(screen.getByText('Generated locally')).toBeInTheDocument();
     const duration = screen.getByRole('combobox', { name: 'Workout length' });
@@ -230,12 +230,12 @@ describe('Phase 8 final acceptance', () => {
   it('starts a premium active workout and logs a one-tap prefilled set', async () => {
     await startActiveWorkout();
     expect(screen.getByText('Active workout')).toBeInTheDocument();
-    expect(screen.getByText('WC-P8UXR1-0814')).toBeInTheDocument();
+    expect(screen.getByText('WC-P8UXR2-0814')).toBeInTheDocument();
     expect(screen.getByRole('spinbutton', { name: 'Weight' })).toHaveValue(40);
     expect(screen.getByRole('spinbutton', { name: 'Reps' })).toHaveValue(8);
     expect(screen.getByRole('spinbutton', { name: 'RIR' })).toHaveValue(2);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Skip warm-up' }));
     fireEvent.click(screen.getByRole('button', { name: 'Log set' }));
     expect(
       await screen.findByRole('region', { name: 'Rest timer' }),
@@ -248,7 +248,7 @@ describe('Phase 8 final acceptance', () => {
 
   it('keeps the next working set locked across a rapid click-through', async () => {
     await startActiveWorkout();
-    fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Skip warm-up' }));
     fireEvent.click(screen.getByRole('button', { name: 'Log set' }));
     await screen.findByRole('region', { name: 'Rest timer' });
     const nextSet = screen.getByRole('button', { name: 'Log set' });
@@ -260,7 +260,7 @@ describe('Phase 8 final acceptance', () => {
 
   it('preserves an active workout load unit when preferences change', async () => {
     await startActiveWorkout();
-    fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Skip warm-up' }));
     const firstLogger = screen.getByRole('form', {
       name: /Set 1 logger/,
     });
@@ -301,7 +301,7 @@ describe('Phase 8 final acceptance', () => {
 
   it('corrects a completed set inline without adding a record or timer', async () => {
     await startActiveWorkout();
-    fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Skip warm-up' }));
     fireEvent.click(screen.getByRole('button', { name: 'Log set' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
     const editForm = screen.getByRole('form', {

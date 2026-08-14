@@ -151,7 +151,7 @@ test('logs, edits, replaces, pauses, and resumes one durable active workout', as
     .click();
   await page.getByRole('button', { name: 'Start workout' }).click();
   await expect(page.getByText('Active workout')).toBeVisible();
-  await expect(page.getByText('WC-P8UXR1-0814')).toBeVisible();
+  await expect(page.getByText('WC-P8UXR2-0814')).toBeVisible();
   await expect(page.getByText('Adaptive Coach', { exact: true })).toBeVisible();
 
   await page.getByRole('button', { name: /Open demonstration for/ }).click();
@@ -174,7 +174,7 @@ test('logs, edits, replaces, pauses, and resumes one durable active workout', as
     page.getByText(/Only this exercise changed/).first(),
   ).toBeVisible();
 
-  await page.getByRole('button', { name: 'Skip', exact: true }).click();
+  await page.getByRole('button', { name: 'Skip warm-up' }).click();
   const logger = page.getByRole('form', { name: /logger for/ });
   await expect(logger.getByRole('spinbutton', { name: 'Weight' })).toHaveValue(
     '40',
@@ -188,7 +188,7 @@ test('logs, edits, replaces, pauses, and resumes one durable active workout', as
   await editor.getByRole('button', { name: 'Save correction' }).click();
   await expect(page.getByText('42.5 lb × 12 · 2 RIR')).toBeVisible();
 
-  await page.getByText('Exercise note', { exact: true }).click();
+  await page.getByRole('button', { name: 'Note' }).click();
   await page
     .getByRole('textbox', { name: 'Grip, seat height, setup, or form cue' })
     .fill('Synthetic cue: keep the shoulder quiet.');

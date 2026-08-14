@@ -1,8 +1,11 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import type { Exercise } from '../catalog/schema';
 import { mediaById } from '../catalog/mediaManifest';
 import { muscleById } from '../catalog/muscles';
+import { recommendTempo } from '../features/activeWorkout/tempo';
+import { loadCustomMedia, saveCustomMediaVerified } from '../storage/database';
+import type { CustomMediaBlob } from '../storage/userContent';
 
 function assetPath(path: string) {
   return `${import.meta.env.BASE_URL}${path.replace(/^\//, '')}`;
@@ -10,12 +13,35 @@ function assetPath(path: string) {
 
 export function ExerciseGuide({ exercise }: { exercise: Exercise }) {
   const [open, setOpen] = useState(false);
-  const [playing, setPlaying] = useState(true);
+  const [playing, setPlaying] = useState(
+    () => !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
+  );
+  const [customMedia, setCustomMedia] = useState<CustomMediaBlob | null>(null);
+  const [mediaStatus, setMediaStatus] = useState('');
   const openerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const titleId = useId();
   const media = mediaById.get(exercise.mediaId);
+  const tempo = recommendTempo(exercise);
+
+  useEffect(() => {
+    let active = true;
+    void loadCustomMedia().then((items) => {
+      if (!active) return;
+      setCustomMedia(
+        items.find(
+          (item) =>
+            item.exerciseId === exercise.id &&
+            item.purpose === 'exercise-demonstration',
+        ) ?? null,
+      );
+    });
+    return () => {
+      active = false;
+    };
+  }, [exercise.id]);
 
   useEffect(() => {
     if (!open) return;
@@ -75,6 +101,56 @@ export function ExerciseGuide({ exercise }: { exercise: Exercise }) {
 
   if (!media) return null;
   const demonstrationPath = media.demonstrationPath ?? media.posterPath;
+  const demonstrationSource =
+    customMedia?.dataUrl ?? assetPath(demonstrationPath);
+  const tempoStyle = {
+    '--tempo-duration': `${tempo.cycleSeconds}s`,
+  } as CSSProperties;
+
+  async function handleGifUpload(file: File | undefined) {
+    if (!file) return;
+    if (file.type !== 'image/gif') {
+      setMediaStatus(
+        'Choose a GIF file. Other image and video types are not accepted here.',
+      );
+      return;
+    }
+    if (file.size < 1 || file.size > 50_000_000) {
+      setMediaStatus(
+        'The GIF must be larger than 0 bytes and no more than 50 MB.',
+      );
+      return;
+    }
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () =>
+          reject(reader.error ?? new Error('GIF could not be read.'));
+        reader.readAsDataURL(file);
+      });
+      const timestamp = new Date().toISOString();
+      const verified = await saveCustomMediaVerified({
+        id: `exercise-demo-${exercise.id}`,
+        blobKey: `custom-media/exercise-demo-${exercise.id}`,
+        mimeType: 'image/gif',
+        dataUrl,
+        byteSize: file.size,
+        exerciseId: exercise.id,
+        purpose: 'exercise-demonstration',
+        createdAt: timestamp,
+      });
+      setCustomMedia(verified);
+      setPlaying(true);
+      setMediaStatus(
+        'Custom GIF saved and verified locally. It will stay assigned until you replace it.',
+      );
+    } catch {
+      setMediaStatus(
+        'The GIF could not be saved. Your existing guide was kept.',
+      );
+    }
+  }
 
   return (
     <>
@@ -85,9 +161,12 @@ export function ExerciseGuide({ exercise }: { exercise: Exercise }) {
         aria-label={`Open demonstration for ${exercise.name}`}
         onClick={() => setOpen(true)}
       >
-        <span className={playing ? 'guide-frame is-playing' : 'guide-frame'}>
+        <span
+          className={playing ? 'guide-frame is-playing' : 'guide-frame'}
+          style={tempoStyle}
+        >
           <img
-            src={assetPath(playing ? demonstrationPath : media.posterPath)}
+            src={playing ? demonstrationSource : assetPath(media.posterPath)}
             alt=""
             width="92"
             height="70"
@@ -133,23 +212,53 @@ export function ExerciseGuide({ exercise }: { exercise: Exercise }) {
               </div>
               <div
                 className={playing ? 'guide-stage is-playing' : 'guide-stage'}
+                style={tempoStyle}
               >
                 <img
-                  src={assetPath(
-                    playing ? demonstrationPath : media.reducedMotionPosterPath,
-                  )}
+                  src={
+                    playing
+                      ? demonstrationSource
+                      : assetPath(media.reducedMotionPosterPath)
+                  }
                   alt={`${exercise.name} movement guide`}
                 />
                 <i aria-hidden="true" />
               </div>
-              <button
-                className="guide-play-button"
-                type="button"
-                aria-pressed={playing}
-                onClick={() => setPlaying(!playing)}
+              <div className="guide-media-actions">
+                <button
+                  className="guide-play-button"
+                  type="button"
+                  aria-pressed={playing}
+                  onClick={() => setPlaying(!playing)}
+                >
+                  {playing ? 'Pause guide' : 'Play guide'}
+                </button>
+                <button
+                  className="guide-swap-button"
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {customMedia ? 'Swap GIF' : 'Use my GIF'}
+                </button>
+                <input
+                  ref={fileInputRef}
+                  className="visually-hidden"
+                  type="file"
+                  accept="image/gif,.gif"
+                  aria-label={`Upload a custom GIF for ${exercise.name}`}
+                  onChange={(event) => {
+                    void handleGifUpload(event.target.files?.[0]);
+                    event.currentTarget.value = '';
+                  }}
+                />
+              </div>
+              <p
+                className="guide-media-status"
+                role="status"
+                aria-live="polite"
               >
-                {playing ? 'Pause guide' : 'Play guide'}
-              </button>
+                {mediaStatus}
+              </p>
               <div className="guide-facts">
                 <span>
                   Primary:{' '}
@@ -158,6 +267,7 @@ export function ExerciseGuide({ exercise }: { exercise: Exercise }) {
                     .join(', ')}
                 </span>
                 <span>Breathing: exhale through the working phase</span>
+                <span>Recommended tempo: {tempo.code}</span>
               </div>
               <ol className="guide-instructions">
                 {exercise.instructions.map((instruction) => (
@@ -173,8 +283,9 @@ export function ExerciseGuide({ exercise }: { exercise: Exercise }) {
                 </ul>
               </details>
               <p className="guide-license">
-                Project-owned movement diagram. Packaged with the offline app
-                and cleared for redistribution.
+                {customMedia
+                  ? 'Your custom GIF is stored only in this app profile and included in protected backups.'
+                  : 'Project-owned movement diagram. Packaged with the offline app and cleared for redistribution.'}
               </p>
             </section>
           </div>,

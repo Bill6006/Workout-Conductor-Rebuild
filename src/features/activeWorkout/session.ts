@@ -76,6 +76,7 @@ export function createActiveSession(
     pinnedExerciseIds: [],
     acceptedAlternativeIds: [],
     skippedBlockIds: [],
+    skippedSetKeys: [],
     deferredPrescriptionIds: [],
     omittedPrescriptionIds: [],
     completionCelebratedAt: null,
@@ -123,47 +124,45 @@ function moveSlot(
   roundIndex: number | null,
 ): SetSlot | null {
   const warmupChoice = session.warmupSelections[move.prescriptionId];
-  const warmups = recordsFor(session, move.prescriptionId, 'warmup');
-  if (warmupChoice === 'added' && warmups.length < move.warmupSets.length) {
-    const warmup = move.warmupSets[warmups.length];
-    return {
-      blockId: block.blockId,
-      blockIndex,
-      prescriptionId: move.prescriptionId,
-      exerciseId: move.exerciseId,
-      exerciseName: move.exerciseName,
-      kind: 'warmup',
-      setIndex: warmups.length,
-      roundIndex: null,
-      moveIndex,
-      targetReps: String(warmup.reps),
-      targetRir: 4,
-      restSeconds: 45,
-      loadGuidance:
-        warmup.loadPercent === null
-          ? warmup.note
-          : `${warmup.loadPercent}% of working load · ${warmup.note}`,
-    };
+  if (warmupChoice === 'added') {
+    for (let setIndex = 0; setIndex < move.warmupSets.length; setIndex += 1) {
+      const warmup = move.warmupSets[setIndex];
+      const candidate: SetSlot = {
+        blockId: block.blockId,
+        blockIndex,
+        prescriptionId: move.prescriptionId,
+        exerciseId: move.exerciseId,
+        exerciseName: move.exerciseName,
+        kind: 'warmup',
+        setIndex,
+        roundIndex: null,
+        moveIndex,
+        targetReps: String(warmup.reps),
+        targetRir: 4,
+        restSeconds: 45,
+        loadGuidance:
+          warmup.loadPercent === null
+            ? warmup.note
+            : `${warmup.loadPercent}% of working load · ${warmup.note}`,
+      };
+      if (!slotConsumed(session, candidate)) return candidate;
+    }
   }
 
-  const working = recordsFor(session, move.prescriptionId, 'working');
-  if (working.length < workingSetCount) {
-    const nextRound = roundIndex ?? working.length;
-    if (
-      roundIndex !== null &&
-      working.some((record) => record.roundIndex === roundIndex)
-    ) {
-      return null;
-    }
-    return {
+  const candidateIndexes =
+    roundIndex === null
+      ? Array.from({ length: workingSetCount }, (_, index) => index)
+      : [roundIndex];
+  for (const setIndex of candidateIndexes) {
+    const candidate: SetSlot = {
       blockId: block.blockId,
       blockIndex,
       prescriptionId: move.prescriptionId,
       exerciseId: move.exerciseId,
       exerciseName: move.exerciseName,
       kind: 'working',
-      setIndex: working.length,
-      roundIndex: nextRound,
+      setIndex,
+      roundIndex: setIndex,
       moveIndex,
       targetReps: `${move.repRange.min}–${move.repRange.max}`,
       targetRir: move.targetRir,
@@ -173,20 +172,21 @@ function moveSlot(
           : block.restAfterRoundSeconds,
       loadGuidance: move.loadGuidance,
     };
+    if (!slotConsumed(session, candidate)) return candidate;
   }
 
   if (
     move.dropSet &&
     recordsFor(session, move.prescriptionId, 'drop').length === 0
   ) {
-    return {
+    const candidate: SetSlot = {
       blockId: block.blockId,
       blockIndex,
       prescriptionId: move.prescriptionId,
       exerciseId: move.exerciseId,
       exerciseName: move.exerciseName,
       kind: 'drop',
-      setIndex: working.length,
+      setIndex: workingSetCount,
       roundIndex: null,
       moveIndex,
       targetReps: move.dropSet.reps,
@@ -194,6 +194,7 @@ function moveSlot(
       restSeconds: 0,
       loadGuidance: `Reduce load ${move.dropSet.loadReductionPercent}% · ${move.dropSet.rationale}`,
     };
+    if (!slotConsumed(session, candidate)) return candidate;
   }
   return null;
 }
@@ -252,11 +253,8 @@ function nextSlotInBlock(
       session.omittedPrescriptionIds.includes(move.prescriptionId)
     )
       continue;
-    if (
-      move.dropSet &&
-      recordsFor(session, move.prescriptionId, 'drop').length === 0
-    ) {
-      return {
+    if (move.dropSet) {
+      const candidate: SetSlot = {
         blockId: block.blockId,
         blockIndex,
         prescriptionId: move.prescriptionId,
@@ -271,6 +269,7 @@ function nextSlotInBlock(
         restSeconds: 0,
         loadGuidance: `Reduce load ${move.dropSet.loadReductionPercent}% · ${move.dropSet.rationale}`,
       };
+      if (!slotConsumed(session, candidate)) return candidate;
     }
   }
   return null;
@@ -402,7 +401,7 @@ export function editSet(
   });
 }
 
-function slotKey(slot: SetSlot): string {
+export function slotKey(slot: SetSlot): string {
   return [
     slot.blockId,
     slot.prescriptionId,
@@ -411,6 +410,37 @@ function slotKey(slot: SetSlot): string {
     slot.roundIndex ?? 'none',
     slot.moveIndex,
   ].join(':');
+}
+
+function slotConsumed(session: ActiveSession, slot: SetSlot) {
+  const key = slotKey(slot);
+  return (
+    session.skippedSetKeys.includes(key) ||
+    session.records.some((record) => recordSlotKey(record) === key)
+  );
+}
+
+export function skipCurrentSet(
+  session: ActiveSession,
+  now: Date | string = new Date(),
+): ActiveSession {
+  if (session.status !== 'active') return session;
+  const current = nextSetSlot(session);
+  if (!current) return session;
+  const timestamp = sessionTimestamp(now);
+  const candidate = ActiveSessionSchema.parse({
+    ...session,
+    skippedSetKeys: Array.from(
+      new Set([...session.skippedSetKeys, slotKey(current)]),
+    ),
+    restTimer: null,
+    updatedAt: timestamp,
+  });
+  const next = nextSetSlot(candidate);
+  return ActiveSessionSchema.parse({
+    ...candidate,
+    currentBlockIndex: next?.blockIndex ?? candidate.workout.blocks.length,
+  });
 }
 
 function recordSlotKey(record: ActiveSetRecord): string {
@@ -548,10 +578,20 @@ function prescriptionComplete(
   move: ExercisePrescription,
 ) {
   const working = recordsFor(session, move.prescriptionId, 'working').length;
+  const skippedWorking = session.skippedSetKeys.filter((key) => {
+    const parts = key.split(':');
+    return parts[1] === move.prescriptionId && parts[2] === 'working';
+  }).length;
   const dropComplete =
     !move.dropSet ||
-    recordsFor(session, move.prescriptionId, 'drop').length > 0;
-  return working >= requiredWorkingSets(block, move) && dropComplete;
+    recordsFor(session, move.prescriptionId, 'drop').length > 0 ||
+    session.skippedSetKeys.some((key) => {
+      const parts = key.split(':');
+      return parts[1] === move.prescriptionId && parts[2] === 'drop';
+    });
+  return (
+    working + skippedWorking >= requiredWorkingSets(block, move) && dropComplete
+  );
 }
 
 export function workoutExerciseQueue(

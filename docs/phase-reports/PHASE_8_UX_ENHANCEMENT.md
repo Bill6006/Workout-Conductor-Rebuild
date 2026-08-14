@@ -2,9 +2,9 @@
 
 Status: **YELLOW — implementation complete; independent adversarial retest required**
 
-Release: `0.8.5`
+Release: `0.8.6`
 
-Build marker: `WC-P8UXR1-0814`
+Build marker: `WC-P8UXR2-0814`
 
 Phase 9 was not started. This repair keeps the existing Phase 8 safety boundary, preserves the active-workout enhancement, and closes independent finding `WC-P8UX-RT-001` without claiming the remaining manual gates.
 
@@ -18,6 +18,10 @@ Phase 9 was not started. This repair keeps the existing Phase 8 safety boundary,
 | Explicit finish consent                 | An active session no longer auto-closes when its last runnable set ends. Finish lists missed exercises and offers Return to missed exercises, Finish without them, and Cancel.                                        | Engine confirmation tests and rendered/browser alert-dialog checks.                                                         |
 | Intentional omission accounting         | Confirmed omissions are stored in `omittedPrescriptionIds`, listed in the session summary, and have no synthetic records; therefore they cannot contribute volume, PRs, muscle coverage, or progression targets.      | Analytics, rendered summary, completed-history, backup, and Progress checks.                                                |
 | Verified one-time celebration           | Completion persists `completionCelebratedAt`; confetti is shown only after the verified save resolves and never replays after reload. Reduced motion hides the particles and retains a nonanimated completion status. | Rendered, rapid-finish, reload, reduced-motion, and manual production-build checks.                                         |
+| Focused utility sheets                  | Note and Plate Math now open as modal sheets from the sticky navigator. The obsolete lower-page dropdowns, duplicated workout list/next preview, and startup-save banner are removed.                                 | Rendered focus/Escape checks, Android Chromium interaction, and exact-build visual inspection.                              |
+| One-set omission                        | Set Options now offers `Skip set`; `skippedSetKeys` persists one exact warm-up, working, grouped-round, or drop-set slot without creating analytics evidence.                                                         | Unit, schema reload, grouped-block, rapid-activation, rendered, and browser regressions.                                    |
+| Persistent user GIF                     | Exercise details validate and verified-save one GIF override per exercise in the protected custom-media store. The override survives reload and backup/restore until replaced.                                        | MIME/size rejection, component remount, backup/restore, and production-browser file-upload regressions.                     |
+| Evidence-informed tempo                 | Shared metadata-derived guidance appears above the set target and drives the movement-guide progress cycle. Copy explicitly avoids claiming a uniquely optimal research tempo.                                        | Catalog-wide unit checks, rendered ordering, computed-animation, reduced-motion, and visual production inspection.          |
 
 ## Preservation and migration
 
@@ -28,8 +32,8 @@ Phase 9 was not started. This repair keeps the existing Phase 8 safety boundary,
 
 ## Verification
 
-- 146/146 unit and integration tests
-- 20/20 Android Chromium production-build scenarios
+- 155/155 unit and integration tests
+- 21/21 Android Chromium production-build scenarios
 - TypeScript production build, lint, formatting, privacy scan, and built-asset/PWA verification
 - exact restore/read-back/rollback, malformed and tampered import rejection, legacy migration, and true offline app-shell reload
 - mobile, landscape, keyboard, touch-target, reduced-motion, rapid-activation, pause/resume, and responsive checks
