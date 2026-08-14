@@ -12,7 +12,7 @@ function updateMove(
   move: ExercisePrescription,
   action: CoachAction,
   completedCount: number,
-) {
+): ExercisePrescription {
   if (action.exerciseId && move.exerciseId !== action.exerciseId) return move;
   switch (action.kind) {
     case 'increase-rest':
@@ -44,6 +44,8 @@ function updateMove(
         dropSet: {
           reps: '10–15',
           loadReductionPercent: 20,
+          method: 'load',
+          transitionSeconds: 15,
           rationale: 'Optional coach recommendation; stop if form changes.',
         },
       };

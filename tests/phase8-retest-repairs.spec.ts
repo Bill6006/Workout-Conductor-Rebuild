@@ -5,7 +5,7 @@ async function openDemo(page: Page) {
   await page
     .getByRole('button', { name: 'Explore with a synthetic demo profile' })
     .click();
-  await expect(page.getByText('WC-P8UXR4-0814')).toBeVisible();
+  await expect(page.getByText('WC-P8R5-0814')).toBeVisible();
 }
 
 async function rapidSetActivation(page: Page) {
@@ -69,7 +69,10 @@ test('QA-P8-005 latches warm-up, ordinary, and superset set creation plus comple
   ).toBeVisible();
 
   await finishWithoutRemaining(page);
-  const save = page.getByRole('button', { name: 'Save this workout' });
+  await expect(
+    page.getByText('This completed session is already saved in Progress.'),
+  ).toBeVisible();
+  const save = page.getByRole('button', { name: 'Save routine to Plan' });
   await save.evaluate((button) => {
     button.click();
     button.click();

@@ -16,6 +16,7 @@ import {
   type WeeklyVolume,
   type WorkoutBlock,
   type WorkoutDuration,
+  type WorkoutMode,
 } from './schema';
 import {
   generationConflictContext,
@@ -34,6 +35,7 @@ export type WorkoutGenerationInput = {
   settings: AppSettings;
   location: ResolvedTrainingLocation;
   duration: WorkoutDuration;
+  mode?: WorkoutMode;
   date: string;
   workoutPosition: number;
   currentWeeklyVolume: WeeklyVolume;
@@ -50,6 +52,7 @@ export const workoutDurationOptions: Array<{
   { value: '15', label: () => '15 minutes' },
   { value: '30', label: () => '30 minutes' },
   { value: '45', label: () => '45 minutes' },
+  { value: '60', label: () => '60 minutes' },
   {
     value: 'default',
     label: (defaultMinutes) => `Default time · ${defaultMinutes} min`,
@@ -414,8 +417,15 @@ function applyDropSet(
           dropSet: {
             reps: 'Continue with clean reps to 1 RIR',
             loadReductionPercent: 25,
+            method:
+              exercise.plateMath.loadType === 'bodyweight'
+                ? ('leverage' as const)
+                : ('load' as const),
+            transitionSeconds: 15,
             rationale:
-              'A stable final exercise adds hypertrophy volume without affecting later priority work.',
+              exercise.plateMath.loadType === 'bodyweight'
+                ? 'Use an easier stable leverage immediately after the final working set; do not invent an external load.'
+                : 'Reduce the load promptly after the final working set for a time-efficient intensity technique.',
           },
         };
         if (block.kind === 'exercise') {
@@ -509,7 +519,31 @@ export function generateWorkout(
   sourceInput: WorkoutGenerationInput,
 ): GeneratedWorkout {
   const profile = generationProfile(sourceInput);
-  const input = { ...sourceInput, profile };
+  const mode = sourceInput.mode ?? 'auto';
+  const settings: AppSettings =
+    mode === 'straight'
+      ? {
+          ...sourceInput.settings,
+          allowSupersets: false,
+          allowCircuits: false,
+          allowDropSets: false,
+        }
+      : mode === 'superset'
+        ? {
+            ...sourceInput.settings,
+            allowSupersets: true,
+            allowCircuits: false,
+            allowDropSets: false,
+          }
+        : mode === 'drop-set'
+          ? {
+              ...sourceInput.settings,
+              allowSupersets: false,
+              allowCircuits: false,
+              allowDropSets: true,
+            }
+          : sourceInput.settings;
+  const input = { ...sourceInput, profile, settings, mode };
   const targetSeconds = targetSecondsForDuration(
     input.duration,
     profile.typicalDuration,
@@ -622,7 +656,23 @@ export function generateWorkout(
           ? { main: 3, support: 3, lower: 0, press: 0, superset: 2, core: 0 }
           : input.duration === '45'
             ? { main: 4, support: 3, lower: 3, press: 0, superset: 3, core: 0 }
-            : { main: 4, support: 4, lower: 3, press: 3, superset: 3, core: 2 };
+            : input.duration === '60'
+              ? {
+                  main: 4,
+                  support: 4,
+                  lower: 4,
+                  press: 3,
+                  superset: 3,
+                  core: 3,
+                }
+              : {
+                  main: 4,
+                  support: 4,
+                  lower: 3,
+                  press: 3,
+                  superset: 3,
+                  core: 2,
+                };
     blocks.push(
       exerciseBlock(
         'block-1',
@@ -768,13 +818,14 @@ export function generateWorkout(
     muscleName(priority.muscle),
   );
   const generated: GeneratedWorkout = {
-    id: `workout-${input.date.slice(0, 10)}-${input.workoutPosition}-${input.duration}`,
+    id: `workout-${input.date.slice(0, 10)}-${input.workoutPosition}-${input.duration}-${mode}`,
     title:
       profile.primaryGoal === 'General Fitness'
         ? 'Total-body conditioning'
         : `${priorityNames.slice(0, 2).join(' + ')} hybrid`,
     goal: `${profile.primaryGoal} · ${profile.secondaryGoal}`,
     duration: input.duration,
+    mode,
     targetSeconds,
     estimatedSeconds: estimate.totalSeconds,
     estimatedMinutes: Math.ceil(estimate.totalSeconds / 60),
@@ -811,6 +862,7 @@ export function generateWorkout(
         input.date.slice(0, 10),
         input.workoutPosition,
         input.duration,
+        mode,
         input.location.locationId,
         profile.updatedAt,
       ].join(':'),
@@ -835,6 +887,7 @@ export function generationInputFromBundle(
       | 'previousExerciseIds'
       | 'readiness'
       | 'painFlags'
+      | 'mode'
     >
   > = {},
 ): WorkoutGenerationInput {
@@ -851,6 +904,7 @@ export function generationInputFromBundle(
     previousExerciseIds: overrides.previousExerciseIds ?? [],
     readiness: overrides.readiness ?? 'ready',
     painFlags: overrides.painFlags ?? [],
+    mode: overrides.mode ?? 'auto',
   };
 }
 

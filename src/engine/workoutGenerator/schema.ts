@@ -5,8 +5,20 @@ import {
   TrainingRoleSchema,
 } from '../../catalog/schema';
 
-export const workoutDurationValues = ['15', '30', '45', 'default'] as const;
+export const workoutDurationValues = [
+  '15',
+  '30',
+  '45',
+  '60',
+  'default',
+] as const;
 export const WorkoutDurationSchema = z.enum(workoutDurationValues);
+export const WorkoutModeSchema = z.enum([
+  'auto',
+  'straight',
+  'superset',
+  'drop-set',
+]);
 
 export const warmupSetSchema = z.object({
   kind: z.enum(['movement-rehearsal', 'load-ramp']),
@@ -43,6 +55,8 @@ export const exercisePrescriptionSchema = z.object({
     .object({
       reps: z.string().min(1),
       loadReductionPercent: z.number().int().min(5).max(50),
+      method: z.enum(['load', 'leverage']).default('load'),
+      transitionSeconds: z.number().int().min(0).max(60).default(15),
       rationale: z.string().min(1),
     })
     .nullable(),
@@ -78,6 +92,7 @@ export const generatedWorkoutSchema = z.object({
   title: z.string().min(1),
   goal: z.string().min(1),
   duration: WorkoutDurationSchema,
+  mode: WorkoutModeSchema.default('auto'),
   targetSeconds: z.number().int().positive(),
   estimatedSeconds: z.number().int().positive(),
   estimatedMinutes: z.number().int().positive(),
@@ -106,6 +121,7 @@ export const generatedWorkoutSchema = z.object({
 });
 
 export type WorkoutDuration = z.infer<typeof WorkoutDurationSchema>;
+export type WorkoutMode = z.infer<typeof WorkoutModeSchema>;
 export type WarmupSet = z.infer<typeof warmupSetSchema>;
 export type ExercisePrescription = z.infer<typeof exercisePrescriptionSchema>;
 export type WorkoutBlock = z.infer<typeof workoutBlockSchema>;

@@ -25,6 +25,7 @@ import {
 import { SETTINGS_STORAGE_KEY } from './settings';
 import { CoachTargetImportSchema, CustomMediaBlobSchema } from './userContent';
 import { LegacyUserProfileSchema } from './legacyProfile';
+import { PlanRevisionSchema } from '../features/planning/schema';
 
 const RawStoreRecordSchema = z.looseObject({
   key: z.union([z.string(), z.number()]),
@@ -68,6 +69,7 @@ const recordSchemas: Partial<Record<StoreName, z.ZodType>> = {
   [storeNames.customExercises]: CustomExerciseSchema,
   [storeNames.customMedia]: CustomMediaBlobSchema,
   [storeNames.coachTargets]: CoachTargetImportSchema,
+  [storeNames.planRevisions]: PlanRevisionSchema,
 };
 
 function parseJson(text: string): unknown {
@@ -114,6 +116,13 @@ function validateSnapshot(snapshot: RawStoreSnapshot) {
   }
 }
 
+function normalizeLegacyProtectedStores(snapshot: RawStoreSnapshot) {
+  if (!snapshot[storeNames.planRevisions]) {
+    return { ...snapshot, [storeNames.planRevisions]: [] };
+  }
+  return snapshot;
+}
+
 function normalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(normalize);
   if (value && typeof value === 'object') {
@@ -149,6 +158,9 @@ function snapshotsMatch(first: RawStoreSnapshot, second: RawStoreSnapshot) {
 function completeFromUnknown(value: unknown): CompleteBackup | null {
   const parsed = CompleteBackupSchema.safeParse(value);
   if (!parsed.success) return null;
+  parsed.data.data.stores = normalizeLegacyProtectedStores(
+    parsed.data.data.stores,
+  );
   validateSnapshot(parsed.data.data.stores);
   validateSettings(parsed.data.data.settingsRaw);
   return parsed.data;

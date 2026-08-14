@@ -5,7 +5,7 @@ async function openActiveWorkout(page: Page) {
   await page
     .getByRole('button', { name: 'Explore with a synthetic demo profile' })
     .click();
-  await expect(page.getByText('WC-P8UXR4-0814')).toBeVisible();
+  await expect(page.getByText('WC-P8R5-0814')).toBeVisible();
   await page
     .getByRole('combobox', { name: 'Workout length' })
     .selectOption('15');

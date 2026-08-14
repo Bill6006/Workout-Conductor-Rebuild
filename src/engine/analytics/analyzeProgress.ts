@@ -536,6 +536,12 @@ export function buildSessionSummary(
     musclesTrained,
     recoveryNote: `Allow roughly ${recoveryHours} hours before hard training for the slowest-recovering muscle from this session; readiness still overrides the estimate.`,
     substitutions: session.acceptedAlternativeIds.length,
+    intensityTechniques: session.records
+      .filter((record) => record.intensityTechnique === 'drop-set')
+      .map((record) => ({
+        exerciseName: record.exerciseName,
+        label: `${record.techniqueNote ?? 'Drop set'} · ${record.reps} reps${record.weight > 0 ? ` at ${displayWeight(record, units)} ${units}` : ' using an easier leverage'}`,
+      })),
     omittedExercises: session.workout.blocks
       .flatMap(blockMoves)
       .filter((move) =>

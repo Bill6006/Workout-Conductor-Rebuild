@@ -1535,6 +1535,258 @@
   }
 }
 
+.routine-save-option {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid rgba(200, 255, 61, 0.12);
+  border-radius: 16px;
+  background: rgba(200, 255, 61, 0.035);
+}
+
+.routine-save-option p,
+.routine-save-option small {
+  margin: 0;
+}
+.routine-save-option p {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #cbd1cc;
+  font-size: 0.65rem;
+}
+.routine-save-option small {
+  color: #778078;
+  font-size: 0.55rem;
+}
+.routine-save-option button {
+  min-height: 44px;
+  border: 1px solid rgba(200, 255, 61, 0.2);
+  border-radius: 12px;
+  color: #d8ff75;
+  background: #171d14;
+  font: inherit;
+  font-weight: 800;
+}
+.routine-save-option button:disabled {
+  color: #8e9a82;
+  opacity: 0.75;
+}
+
+.training-calendar {
+  margin: 18px 0 26px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 22px;
+  background: #111516;
+}
+.training-calendar__heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.training-calendar__heading h2 {
+  margin: 2px 0 0;
+}
+.training-calendar__controls {
+  display: flex;
+  gap: 8px;
+}
+.training-calendar__controls button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  min-height: 44px;
+  border: 1px solid rgba(200, 255, 61, 0.16);
+  border-radius: 12px;
+  color: #d8ff75;
+  background: #171b18;
+}
+.training-calendar__controls .training-calendar__today {
+  width: auto;
+  padding-inline: 12px;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+.training-calendar__weekdays,
+.training-calendar__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+.training-calendar__weekdays {
+  margin: 16px 0 7px;
+  color: #747d75;
+  font-size: 0.52rem;
+  font-weight: 800;
+  text-align: center;
+}
+.training-calendar__day {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 42px;
+  border-radius: 10px;
+  color: #aab1ab;
+  font-size: 0.62rem;
+}
+.training-calendar__day b {
+  position: absolute;
+  right: 3px;
+  bottom: -2px;
+  font-size: 1rem;
+  line-height: 1;
+}
+.training-calendar__day.is-completed b,
+.training-calendar__legend .is-completed {
+  color: #c8ff3d;
+}
+.training-calendar__day.is-missed b,
+.training-calendar__legend .is-missed {
+  color: #ff6b67;
+}
+.training-calendar__day.is-scheduled {
+  outline: 1px dashed rgba(200, 255, 61, 0.18);
+}
+.training-calendar__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 14px;
+  color: #7d867e;
+  font-size: 0.53rem;
+}
+.training-calendar__legend span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.history-adaptation-note {
+  display: flex;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(200, 255, 61, 0.1);
+  border-radius: 15px;
+  color: #c8ff3d;
+  background: rgba(200, 255, 61, 0.03);
+}
+.history-adaptation-note div {
+  display: grid;
+  gap: 3px;
+}
+.history-adaptation-note strong {
+  color: #d8ded9;
+  font-size: 0.63rem;
+}
+.history-adaptation-note span {
+  color: #7d867e;
+  font-size: 0.53rem;
+  line-height: 1.45;
+}
+.workout-mode-control {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 0;
+  border: 0;
+}
+.workout-mode-control legend {
+  margin-bottom: 7px;
+  color: #9ca49d;
+  font-size: 0.56rem;
+  font-weight: 800;
+}
+.workout-mode-control button {
+  min-height: 44px;
+  padding: 7px 5px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 11px;
+  color: #8e978f;
+  background: #111516;
+  font: inherit;
+  font-size: 0.54rem;
+  font-weight: 800;
+}
+.workout-mode-control button.is-selected {
+  border-color: rgba(200, 255, 61, 0.28);
+  color: #d8ff75;
+  background: rgba(200, 255, 61, 0.07);
+}
+@media (max-width: 390px) {
+  .workout-mode-control {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.drop-set-heads-up,
+.drop-set-transition {
+  display: flex;
+  gap: 10px;
+  margin: 14px 0;
+  padding: 13px;
+  border: 1px solid rgba(255, 204, 92, 0.24);
+  border-radius: 15px;
+  color: #f5cf75;
+  background: rgba(255, 204, 92, 0.055);
+}
+.drop-set-heads-up div,
+.drop-set-transition {
+  display: grid;
+}
+.drop-set-heads-up div {
+  gap: 4px;
+}
+.drop-set-heads-up strong,
+.drop-set-transition strong {
+  font-size: 0.67rem;
+}
+.drop-set-heads-up span,
+.drop-set-transition span,
+.drop-set-transition small {
+  color: #b5ad92;
+  font-size: 0.56rem;
+  line-height: 1.5;
+}
+.drop-set-transition {
+  gap: 5px;
+}
+.set-logger__technique {
+  display: grid;
+  align-content: center;
+  gap: 7px;
+  min-height: 82px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 15px;
+  background: #101413;
+}
+.set-logger__technique span {
+  color: #8a938b;
+  font-size: 0.55rem;
+  font-weight: 800;
+}
+.set-logger__technique strong {
+  color: #d8ff75;
+  font-size: 0.68rem;
+}
+.catalog-apply-path {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 12px;
+  border: 1px solid rgba(200, 255, 61, 0.24);
+  border-radius: 13px;
+  color: #d8ff75;
+  background: rgba(200, 255, 61, 0.07);
+  font: inherit;
+  font-size: 0.62rem;
+  font-weight: 850;
+}
+
 /* Phase 8 UX enhancement: durable workout navigation and completion */
 .workout-navigator {
   position: sticky;

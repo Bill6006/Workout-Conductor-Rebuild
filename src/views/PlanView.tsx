@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Icon } from '../components/Icon';
 import type { AppBundle } from '../domain/models';
 import { analyzeProgress } from '../engine/analytics/analyzeProgress';
@@ -6,22 +7,30 @@ import type {
   ReadinessCheck,
 } from '../features/activeWorkout/schema';
 import type { SavedWorkout } from '../features/savedWorkouts/schema';
+import { monthCalendar } from '../features/planning/calendar';
+import type { PlanRevision } from '../features/planning/schema';
 
 export function PlanView({
   bundle,
   sessionHistory,
   savedWorkouts,
+  planRevisions,
   onStartSaved,
 }: {
   bundle: AppBundle;
   sessionHistory: ActiveSession[];
   savedWorkouts: SavedWorkout[];
+  planRevisions: PlanRevision[];
   onStartSaved: (
     workout: SavedWorkout['workout'],
     readiness: ReadinessCheck,
   ) => void;
 }) {
   const profile = bundle.profile!;
+  const [visibleMonth, setVisibleMonth] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() };
+  });
   const analytics = analyzeProgress(
     sessionHistory,
     profile,
@@ -36,6 +45,23 @@ export function PlanView({
     motivation: 3,
     timePressure: 'none',
     checkedAt: new Date().toISOString(),
+  };
+  const calendarDays = monthCalendar({
+    ...visibleMonth,
+    revisions: planRevisions,
+    sessions: sessionHistory,
+  });
+  const monthLabel = new Intl.DateTimeFormat('en-US', {
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(visibleMonth.year, visibleMonth.month, 1));
+  const moveMonth = (delta: number) => {
+    const next = new Date(visibleMonth.year, visibleMonth.month + delta, 1);
+    setVisibleMonth({ year: next.getFullYear(), month: next.getMonth() });
+  };
+  const returnToCurrentMonth = () => {
+    const now = new Date();
+    setVisibleMonth({ year: now.getFullYear(), month: now.getMonth() });
   };
 
   return (
@@ -64,6 +90,81 @@ export function PlanView({
           {analytics.fourWeekSessions} sessions completed in the last four weeks
           · {analytics.consistencyPercent}% of your planned rhythm.
         </p>
+      </section>
+
+      <section
+        className="training-calendar"
+        aria-labelledby="training-calendar-title"
+      >
+        <div className="training-calendar__heading">
+          <div>
+            <p className="eyebrow">Training attendance</p>
+            <h2 id="training-calendar-title">{monthLabel}</h2>
+          </div>
+          <div className="training-calendar__controls">
+            <button
+              type="button"
+              onClick={() => moveMonth(-1)}
+              aria-label="Previous month"
+            >
+              <Icon name="arrow" size={18} />
+            </button>
+            <button
+              type="button"
+              className="training-calendar__today"
+              onClick={returnToCurrentMonth}
+              aria-label="Return to current month"
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              onClick={() => moveMonth(1)}
+              aria-label="Next month"
+            >
+              <Icon name="chevron" size={18} />
+            </button>
+          </div>
+        </div>
+        <div className="training-calendar__weekdays" aria-hidden="true">
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+            <span key={day}>{day}</span>
+          ))}
+        </div>
+        <div className="training-calendar__grid">
+          {Array.from(
+            {
+              length: new Date(
+                visibleMonth.year,
+                visibleMonth.month,
+                1,
+              ).getDay(),
+            },
+            (_, index) => (
+              <span key={`blank-${index}`} aria-hidden="true" />
+            ),
+          )}
+          {calendarDays.map((item) => (
+            <div
+              key={item.dateKey}
+              className={`training-calendar__day is-${item.status}`}
+              aria-label={`${item.dateKey}: ${item.status === 'completed' ? 'workout completed' : item.status === 'missed' ? 'scheduled workout missed' : item.status === 'scheduled' ? 'workout scheduled' : 'no workout scheduled'}`}
+            >
+              <span>{item.day}</span>
+              {item.status === 'completed' && <b aria-hidden="true">•</b>}
+              {item.status === 'missed' && <b aria-hidden="true">×</b>}
+            </div>
+          ))}
+        </div>
+        <div className="training-calendar__legend">
+          <span>
+            <b className="is-completed">•</b> Completed
+          </span>
+          <span>
+            <b className="is-missed">×</b> Missed scheduled day
+          </span>
+          <span>Future dates stay neutral</span>
+        </div>
       </section>
 
       <div className="section-heading">

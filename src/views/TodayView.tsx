@@ -13,7 +13,9 @@ import {
 import type {
   WorkoutBlock,
   WorkoutDuration,
+  WorkoutMode,
 } from '../engine/workoutGenerator/schema';
+import { deriveWorkoutHistoryContext } from '../engine/workoutGenerator/historyContext';
 import { recalibrateWorkout } from '../engine/recalibration/recalibrateWorkout';
 import {
   emptyCompletedWork,
@@ -83,9 +85,19 @@ export function TodayView({
   onSaveWorkout,
 }: TodayViewProps) {
   const [duration, setDuration] = useState<WorkoutDuration>('default');
+  const [mode, setMode] = useState<WorkoutMode>('auto');
+  const historyContext = useMemo(
+    () => deriveWorkoutHistoryContext(sessionHistory),
+    [sessionHistory],
+  );
   const [showWorkout, setShowWorkout] = useState(false);
   const [workout, setWorkout] = useState(() =>
-    generateWorkout(generationInputFromBundle(bundle, 'default')),
+    generateWorkout(
+      generationInputFromBundle(bundle, 'default', {
+        ...historyContext,
+        mode: 'auto',
+      }),
+    ),
   );
   const [pending, setPending] = useState<PendingRecalibration | null>(null);
   const [lastRecalibration, setLastRecalibration] =
@@ -151,6 +163,7 @@ export function TodayView({
     busyEquipmentIds?: EquipmentId[];
     reason: string;
     readinessOverride?: 'ready' | 'moderate' | 'low';
+    nextMode?: WorkoutMode;
   }) {
     const nextDuration = args.nextDuration ?? duration;
     const sequence = requestSequence.current + 1;
@@ -172,7 +185,10 @@ export function TodayView({
       requestId: `today-${args.trigger}-${sequence}`,
       trigger: args.trigger,
       currentWorkout: workout,
-      generationInput: generationInputFromBundle(bundle, duration),
+      generationInput: generationInputFromBundle(bundle, nextDuration, {
+        ...historyContext,
+        mode: args.nextMode ?? mode,
+      }),
       completedWork: emptyCompletedWork,
       lockedExerciseIds: [],
       pinnedExerciseIds: [],
@@ -246,6 +262,7 @@ export function TodayView({
   function cancelRecalibration() {
     requestSequence.current += 1;
     setDuration(workout.duration);
+    setMode(workout.mode);
     setPending(null);
   }
 
@@ -258,6 +275,16 @@ export function TodayView({
         nextDuration === 'default'
           ? 'The complete default session was requested'
           : `The available workout time changed to ${nextDuration} minutes`,
+    });
+  }
+
+  function handleModeChange(nextMode: WorkoutMode) {
+    setMode(nextMode);
+    void runRecalibration({
+      trigger:
+        nextMode === 'drop-set' ? 'drop-sets-change' : 'supersets-change',
+      nextMode,
+      reason: `The athlete selected ${nextMode} workout structure`,
     });
   }
 
@@ -303,10 +330,28 @@ export function TodayView({
 
       <div className="phase-banner">
         <span className="status-pill">
-          <span /> Phase 8 UX enhancement
+          <span /> Phase 8 research intelligence
         </span>
-        <span className="build-label">WC-P8UXR4-0814</span>
+        <span className="build-label">WC-P8R5-0814</span>
       </div>
+
+      <section
+        className="history-adaptation-note"
+        aria-label="History used for this recommendation"
+      >
+        <Icon name="progress" size={18} />
+        <div>
+          <strong>Built from your completed training</strong>
+          <span>
+            {historyContext.completedSessions7Days} sessions in 7 days ·{' '}
+            {historyContext.completedSessions14Days} in 14 ·{' '}
+            {historyContext.completedSessions28Days} in 28
+            {historyContext.workoutPosition > 1
+              ? ` · workout ${historyContext.workoutPosition} today adapts to earlier completed work`
+              : ''}
+          </span>
+        </div>
+      </section>
 
       <section className="today-hero" aria-labelledby="today-workout-title">
         <div className="today-hero__glow" />
@@ -356,6 +401,27 @@ export function TodayView({
             <strong>{location?.name ?? 'Choose in Settings'}</strong>
           </div>
         </div>
+        <fieldset className="workout-mode-control" disabled={Boolean(pending)}>
+          <legend>Workout structure</legend>
+          {(
+            [
+              ['auto', 'Auto'],
+              ['straight', 'Straight sets'],
+              ['superset', 'Supersets'],
+              ['drop-set', 'Drop sets'],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              className={mode === value ? 'is-selected' : ''}
+              aria-pressed={mode === value}
+              onClick={() => handleModeChange(value)}
+            >
+              {label}
+            </button>
+          ))}
+        </fieldset>
         <p
           className="preview-note generation-summary"
           id="duration-preview-note"
@@ -366,7 +432,8 @@ export function TodayView({
             ? 'default time'
             : `${workout.duration} minutes`}{' '}
           · estimated {workout.estimatedMinutes} min · {workout.blocks.length}{' '}
-          plan blocks
+          plan blocks ·{' '}
+          {workout.mode === 'auto' ? 'best-fit structure' : workout.mode}
         </p>
 
         {lastRecalibration && (

@@ -55,6 +55,24 @@ const patternDetails = {
     'sagittal',
     'Flex the knee against resistance.',
   ],
+  'knee-extension': [
+    'Knee extension',
+    'lower',
+    'sagittal',
+    'Extend the knee against resistance.',
+  ],
+  'hip-extension': [
+    'Hip extension',
+    'lower',
+    'sagittal',
+    'Extend the hip against resistance with a stable trunk.',
+  ],
+  'plantar-flexion': [
+    'Plantar flexion',
+    'lower',
+    'sagittal',
+    'Raise the heel by pressing through the forefoot.',
+  ],
   'elbow-flexion': [
     'Elbow flexion',
     'arms',
@@ -90,6 +108,24 @@ const patternDetails = {
     'core',
     'transverse',
     'Resist rotation through the torso.',
+  ],
+  'trunk-flexion': [
+    'Trunk flexion',
+    'core',
+    'sagittal',
+    'Shorten the front of the torso under abdominal control.',
+  ],
+  'lateral-flexion': [
+    'Lateral trunk stability',
+    'core',
+    'frontal',
+    'Resist or control side bending through the torso.',
+  ],
+  'loaded-carry': [
+    'Loaded carry',
+    'core',
+    'frontal',
+    'Carry external load while maintaining stacked posture and gait.',
   ],
 } as const;
 

@@ -5,29 +5,19 @@ import { mediaById } from '../catalog/mediaManifest';
 import { movementPatternById } from '../catalog/movementPatterns';
 import { muscleById } from '../catalog/muscles';
 import type { Exercise } from '../catalog/schema';
+import type { AppBundle } from '../domain/models';
+import type { ActiveSession } from '../features/activeWorkout/schema';
+import { blockMoves, nextSetSlot } from '../features/activeWorkout/session';
+import { resolveTrainingLocation } from '../engine/workoutGenerator/equipmentAdapter';
+import { deriveWorkoutHistoryContext } from '../engine/workoutGenerator/historyContext';
 import { Icon } from '../components/Icon';
-import { rankAlternatives } from '../engine/alternatives/rankAlternatives';
-import type { ConflictContext } from '../engine/conflicts/types';
+import {
+  alternativeFitBoundary,
+  rankAlternatives,
+} from '../engine/alternatives/rankAlternatives';
 
 const filters = ['all', 'push', 'pull', 'lower', 'arms', 'core'] as const;
 type CatalogFilter = (typeof filters)[number];
-
-const previewContext: ConflictContext = {
-  availableEquipment: [
-    'bodyweight',
-    'dumbbells',
-    'adjustable-bench',
-    'pull-up-bar',
-    'resistance-band',
-  ],
-  location: 'home',
-  blockedJointStress: [],
-  fatiguedMuscles: [],
-  shoulderSensitive: false,
-  avoidBarbellSquat: true,
-  timeBudgetSeconds: 180,
-  supersetPairs: [],
-};
 
 function assetPath(path: string): string {
   return `${import.meta.env.BASE_URL}${path.replace(/^\//, '')}`;
@@ -39,14 +29,26 @@ function equipmentLabel(exercise: Exercise): string {
     .join(' + ');
 }
 
-export function CatalogView() {
+export function CatalogView({
+  bundle,
+  activeSession,
+  sessionHistory,
+  onOpenWorkout,
+}: {
+  bundle: AppBundle;
+  activeSession: ActiveSession | null;
+  sessionHistory: ActiveSession[];
+  onOpenWorkout: () => void;
+}) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<CatalogFilter>('all');
   const [inspectedId, setInspectedId] = useState('dumbbell-bench-press');
+  const currentSlot = activeSession ? nextSetSlot(activeSession) : null;
   const [previewSlotExerciseId, setPreviewSlotExerciseId] = useState(
-    'dumbbell-bench-press',
+    currentSlot?.exerciseId ?? 'dumbbell-bench-press',
   );
   const [swapMessage, setSwapMessage] = useState('');
+  const [contextNow] = useState(() => new Date());
 
   const inspected = exerciseById.get(inspectedId) ?? exerciseCatalog[0];
   const inspectedMedia = mediaById.get(inspected.mediaId);
@@ -69,20 +71,48 @@ export function CatalogView() {
     });
   }, [filter, query]);
 
-  const alternatives = useMemo(
-    () =>
-      rankAlternatives({
-        currentExerciseId: previewSlotExerciseId,
-        selectedExerciseIds: [
-          previewSlotExerciseId,
-          'pull-up',
-          'goblet-squat',
-          'dumbbell-curl',
-        ],
-        context: previewContext,
-      }),
-    [previewSlotExerciseId],
-  );
+  const alternatives = useMemo(() => {
+    const location = resolveTrainingLocation(bundle);
+    const history = deriveWorkoutHistoryContext(sessionHistory, contextNow);
+    const recentCutoff = contextNow.getTime() - 72 * 60 * 60 * 1000;
+    return rankAlternatives({
+      currentExerciseId: previewSlotExerciseId,
+      selectedExerciseIds: activeSession
+        ? activeSession.workout.blocks.flatMap((block) =>
+            blockMoves(block).map((move) => move.exerciseId),
+          )
+        : [previewSlotExerciseId, ...history.previousExerciseIds.slice(0, 5)],
+      dislikedExerciseIds: bundle.profile?.dislikedExercises ?? [],
+      context: {
+        availableEquipment: location.equipment,
+        location: location.kind,
+        blockedJointStress: [],
+        fatiguedMuscles: Array.from(
+          new Set(
+            history.recentExposure
+              .filter(
+                (item) => new Date(item.trainedAt).getTime() >= recentCutoff,
+              )
+              .map((item) => item.muscle),
+          ),
+        ),
+        shoulderSensitive: bundle.profile?.shoulderLimitations ?? false,
+        avoidBarbellSquat: bundle.profile?.avoidBarbellSquats ?? false,
+        timeBudgetSeconds: activeSession
+          ? Math.max(60, activeSession.workout.estimatedSeconds)
+          : bundle.profile?.typicalDuration
+            ? bundle.profile.typicalDuration * 60
+            : 1800,
+        supersetPairs: [],
+      },
+    });
+  }, [
+    activeSession,
+    bundle,
+    contextNow,
+    previewSlotExerciseId,
+    sessionHistory,
+  ]);
 
   const previewExercise =
     exerciseById.get(previewSlotExerciseId) ?? exerciseCatalog[0];
@@ -104,11 +134,12 @@ export function CatalogView() {
           <span className="status-pill">
             <span /> Phase 2 validated
           </span>
-          <span className="build-label">WC-P8UXR4-0814</span>
+          <span className="build-label">WC-P8R5-0814</span>
         </div>
         <p className="overline">One structured source of truth</p>
         <h2 id="catalog-hero-title">
-          28 movements. Every decision has metadata.
+          {exerciseCatalog.length} standard movements. Every decision has
+          metadata.
         </h2>
         <p>
           Muscles, equipment, limitations, joint stress, warm-ups, Plate Math,
@@ -120,11 +151,22 @@ export function CatalogView() {
             <span>muscles</span>
           </div>
           <div>
-            <strong>15</strong>
+            <strong>
+              {
+                new Set(exerciseCatalog.map((item) => item.movementPattern))
+                  .size
+              }
+            </strong>
             <span>patterns</span>
           </div>
           <div>
-            <strong>15</strong>
+            <strong>
+              {
+                new Set(
+                  exerciseCatalog.flatMap((item) => item.equipment.required),
+                ).size
+              }
+            </strong>
             <span>equipment</span>
           </div>
           <div>
@@ -137,8 +179,12 @@ export function CatalogView() {
       <section className="swap-lab" aria-labelledby="swap-lab-title">
         <div className="section-heading-row">
           <div>
-            <p className="eyebrow">Safe swap preview</p>
-            <h2 id="swap-lab-title">Ranked for Demo Home Gym</h2>
+            <p className="eyebrow">Alternative Finder</p>
+            <h2 id="swap-lab-title">
+              Ranked for{' '}
+              {bundle.locations.find((item) => item.isDefault)?.name ??
+                'your current location'}
+            </h2>
           </div>
           <span className="foundation-badge">Foundation</span>
         </div>
@@ -154,7 +200,11 @@ export function CatalogView() {
         <div className="current-slot">
           <span className="current-slot__order">01</span>
           <div>
-            <small>Selected preview slot</small>
+            <small>
+              {activeSession
+                ? 'Current workout exercise'
+                : 'Selected catalog exercise'}
+            </small>
             <strong>{previewExercise.name}</strong>
             <span>{equipmentLabel(previewExercise)}</span>
           </div>
@@ -167,7 +217,9 @@ export function CatalogView() {
               <div className="alternative-card__content">
                 <div>
                   <h3>{candidate.exercise.name}</h3>
-                  <span className="match-score">{candidate.score}% match</span>
+                  <span className="match-score">
+                    {candidate.score} fit score
+                  </span>
                 </div>
                 <p>{candidate.primaryReason}</p>
                 <small>{candidate.keyDifference}</small>
@@ -183,12 +235,13 @@ export function CatalogView() {
               </div>
               <button
                 type="button"
-                aria-label={`Use ${candidate.exercise.name} in preview slot`}
+                aria-label={`Inspect ${candidate.exercise.name} as an alternative`}
                 onClick={() => {
                   const previous = previewExercise.name;
                   setPreviewSlotExerciseId(candidate.exercise.id);
+                  setInspectedId(candidate.exercise.id);
                   setSwapMessage(
-                    `${previous} → ${candidate.exercise.name}. Only this preview slot changed.`,
+                    `${candidate.exercise.name} is now the comparison target. ${candidate.score < 60 ? 'This is a limited fit, not a like-for-like replacement.' : `${previous} remains unchanged until you explicitly confirm a workout replacement.`}`,
                   );
                 }}
               >
@@ -197,6 +250,15 @@ export function CatalogView() {
             </article>
           ))}
         </div>
+        {alternativeFitBoundary(alternatives) && (
+          <div className="conflict-summary" role="status">
+            <Icon name="shield" size={18} />
+            <p>
+              <strong>Alternative quality boundary</strong>
+              <span>{alternativeFitBoundary(alternatives)}</span>
+            </p>
+          </div>
+        )}
         <div className="conflict-summary">
           <Icon name="shield" size={18} />
           <p>
@@ -210,9 +272,21 @@ export function CatalogView() {
           </p>
         </div>
         <p className="phase-boundary-note">
-          Preview only. Applying alternatives to an active workout remains in
-          its approved workout phase.
+          Fit scores are transparent ranking heuristics, not scientific
+          probabilities.
+          {activeSession
+            ? ' Your workout is unchanged until you review and confirm an alternative in the active exercise.'
+            : ' Start a workout before applying a replacement.'}
         </p>
+        {activeSession && (
+          <button
+            className="catalog-apply-path"
+            type="button"
+            onClick={onOpenWorkout}
+          >
+            Review and confirm in active workout
+          </button>
+        )}
       </section>
 
       <section className="exercise-inspector" aria-labelledby="inspector-title">
@@ -318,7 +392,10 @@ export function CatalogView() {
                     : 'catalog-row'
                 }
                 aria-label={`Inspect ${exercise.name}`}
-                onClick={() => setInspectedId(exercise.id)}
+                onClick={() => {
+                  setInspectedId(exercise.id);
+                  setPreviewSlotExerciseId(exercise.id);
+                }}
               >
                 {media && (
                   <img

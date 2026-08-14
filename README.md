@@ -10,11 +10,11 @@ https://bill6006.github.io/Workout-Conductor-Rebuild/
 
 Phase 8 completes the planned application with exact and reversible local-data recovery, production offline exercise demonstrations, safe PWA updates, accessibility and 200% zoom acceptance, and final release polish over the deterministic coaching, workout-execution, and evidence-led progress foundation.
 
-The current `0.8.8` build (`WC-P8UXR4-0814`) preserves the Phase 8 workout and data-safety work while making movement-guide tempo phase-accurate and visible for packaged or user-selected GIF media. It remains YELLOW until a separate adversarial retest confirms the deployed repair without regressing earlier Phase 8 behavior.
+The current `0.8.9` build (`WC-P8R5-0814`) preserves the Phase 8 workout, data-safety, and custom-GIF tempo work while adding history-backed workout intelligence, a date-effective monthly attendance calendar, a contextual Alternative Finder, a 50-movement catalog, explicit time/structure controls, and corrected drop-set execution. It remains YELLOW until a separate adversarial retest confirms the deployed repair without regressing earlier Phase 8 behavior.
 
 Complete backups cover every protected IndexedDB store and local setting, preserve unknown fields, and require a no-change preview plus explicit confirmation before restore. Critical saves and restores are read back and verified, failed restores roll back automatically, and all user data remains browser-local.
 
-See the [Phase 8 cutover report](docs/cutover-report.md), [active-workout navigation enhancement report](docs/phase-reports/PHASE_8_UX_ENHANCEMENT.md), [data-safety contract](docs/data-safety.md), and [PWA/accessibility acceptance](docs/pwa-and-accessibility.md).
+See the [Phase 8 cutover report](docs/cutover-report.md), [R5 research-intelligence report](docs/phase-reports/PHASE_8_RESEARCH_INTELLIGENCE_R5.md), [research ledger](docs/research/PHASE_8_RESEARCH_LEDGER_2026-08-14.md), [data-safety contract](docs/data-safety.md), and [PWA/accessibility acceptance](docs/pwa-and-accessibility.md).
 
 ## Local development
 

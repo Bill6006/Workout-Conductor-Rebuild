@@ -18,6 +18,8 @@ import { rankAlternatives } from '../engine/alternatives/rankAlternatives';
 import { recalibrateWorkout } from '../engine/recalibration/recalibrateWorkout';
 import { emptyCompletedWork } from '../engine/recalibration/schema';
 import { generationInputFromBundle } from '../engine/workoutGenerator/generateWorkout';
+import { resolveTrainingLocation } from '../engine/workoutGenerator/equipmentAdapter';
+import { deriveWorkoutHistoryContext } from '../engine/workoutGenerator/historyContext';
 import { coachRecommendation } from '../engine/coach/progression';
 import { applyConfirmedCoachAction } from '../engine/coach/applyCoachAction';
 import type { CoachAction } from '../engine/coach/schema';
@@ -53,6 +55,8 @@ import {
   unfinishedExercises,
   workoutExerciseQueue,
   workoutCompletion,
+  recommendedDropWeight,
+  recommendedRestAfterSet,
   type WorkoutExerciseQueueItem,
 } from '../features/activeWorkout/session';
 import { recommendTempo } from '../features/activeWorkout/tempo';
@@ -73,6 +77,7 @@ type ActiveWorkoutViewProps = {
     workout: GeneratedWorkout,
     sessionId: string,
   ) => Promise<void>;
+  routineSaved?: boolean;
 };
 
 function WorkoutNavigator({
@@ -323,47 +328,13 @@ function currentRoundLabel(block: WorkoutBlock, setIndex: number) {
   return `Round ${setIndex + 1}`;
 }
 
-function activeEquipment(bundle: AppBundle) {
-  const location =
-    bundle.locations.find((item) => item.isDefault) ?? bundle.locations[0];
-  const profile = bundle.equipmentProfiles.find(
-    (item) => item.id === location?.equipmentProfileId,
-  );
-  const mapping = new Map([
-    ['Adjustable dumbbells', 'dumbbells'],
-    ['Barbell and plates', 'barbell'],
-    ['Adjustable bench', 'adjustable-bench'],
-    ['Pull-up bar', 'pull-up-bar'],
-    ['Resistance bands', 'resistance-band'],
-    ['Cable station', 'cable-station'],
-    ['Machines', 'chest-press-machine'],
-    ['Squat rack', 'squat-rack'],
-  ]);
-  return Array.from(
-    new Set([
-      'bodyweight',
-      ...(profile?.items.map((item) => mapping.get(item)).filter(Boolean) ??
-        []),
-    ]),
-  ) as Array<
-    | 'bodyweight'
-    | 'dumbbells'
-    | 'barbell'
-    | 'adjustable-bench'
-    | 'pull-up-bar'
-    | 'resistance-band'
-    | 'cable-station'
-    | 'chest-press-machine'
-    | 'squat-rack'
-  >;
-}
-
 export function ActiveWorkoutView({
   session,
   bundle,
   sessionHistory,
   onSessionChange,
   onSaveWorkout,
+  routineSaved = false,
 }: ActiveWorkoutViewProps) {
   const [now, setNow] = useState(() => new Date(session.updatedAt).getTime());
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
@@ -443,12 +414,23 @@ export function ActiveWorkoutView({
   const painSignalForMove = session.records.some(
     (record) => record.exerciseId === move?.exerciseId && record.painReported,
   );
+  const lastWorkingForMove = session.records
+    .filter(
+      (record) =>
+        record.prescriptionId === move?.prescriptionId &&
+        record.kind === 'working',
+    )
+    .at(-1);
   const coach = coachRecommendation({
     session,
     history: sessionHistory.filter((item) => item.id !== session.id),
     bundle,
     currentExerciseId: move?.exerciseId ?? null,
   });
+  const generationHistory = deriveWorkoutHistoryContext(
+    sessionHistory,
+    new Date(now),
+  );
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(Date.now()), 1000);
@@ -599,11 +581,22 @@ export function ActiveWorkoutView({
       dislikedExerciseIds: bundle.profile.dislikedExercises,
       supersetPartnerId: partner,
       context: {
-        availableEquipment: activeEquipment(bundle),
+        availableEquipment: resolveTrainingLocation(bundle).equipment,
         location:
           bundle.locations.find((item) => item.isDefault)?.kind ?? 'home',
         blockedJointStress: [],
-        fatiguedMuscles: [],
+        fatiguedMuscles: Array.from(
+          new Set(
+            generationHistory.recentExposure
+              .filter(
+                (item) =>
+                  new Date(now).getTime() -
+                    new Date(item.trainedAt).getTime() <=
+                  72 * 60 * 60 * 1000,
+              )
+              .map((item) => item.muscle),
+          ),
+        ),
         shoulderSensitive: bundle.profile.shoulderLimitations,
         avoidBarbellSquat: bundle.profile.avoidBarbellSquats,
         timeBudgetSeconds: Math.max(60, remainingSeconds),
@@ -710,7 +703,16 @@ export function ActiveWorkoutView({
   }
 
   function startRest(next: ActiveSession, restSeconds: number) {
-    if (next.status !== 'active' || restSeconds <= 0) return next;
+    if (next.status !== 'active') return next;
+    const upcomingSlot = nextSetSlot(next);
+    if (restSeconds <= 0 || upcomingSlot?.kind === 'drop') {
+      return ActiveSessionSchema.parse({
+        ...next,
+        restTimer: null,
+        lastRestStartedAt: null,
+        lastRestTargetSeconds: null,
+      });
+    }
     const timestamp = new Date().toISOString();
     return ActiveSessionSchema.parse({
       ...next,
@@ -730,20 +732,17 @@ export function ActiveWorkoutView({
     values: { weight: number; reps: number; rir: number },
     responseMilliseconds: number,
   ) {
-    if (!slot || !block || setSubmissionLock.current) return;
+    if (!slot || !block || !move || setSubmissionLock.current) return;
     setSubmissionLock.current = true;
     setSetSubmissionPending(true);
     try {
       const logged = logSet(session, slot, values);
-      const isRoundEnd =
-        block.kind === 'exercise' ||
-        slot.moveIndex === blockMoves(block).length - 1;
-      const next = isRoundEnd ? startRest(logged, slot.restSeconds) : logged;
+      const next = startRest(logged, recommendedRestAfterSet(logged, slot));
       await changeSession(
         next,
         next.status === 'completed'
           ? 'Workout complete. Final block closed without an extra set or timer.'
-          : `${slot.kind === 'warmup' ? 'Warm-up' : 'Set'} saved and verified locally in ${responseMilliseconds.toFixed(1)} ms.`,
+          : `${slot.kind === 'warmup' ? 'Warm-up' : slot.kind === 'drop' ? 'Drop set recorded separately from progression volume' : 'Set'} saved and verified locally in ${responseMilliseconds.toFixed(1)} ms.`,
       );
     } finally {
       // Keep the shared action boundary latched across the browser's complete
@@ -876,6 +875,10 @@ export function ActiveWorkoutView({
       generationInput: generationInputFromBundle(
         bundle,
         session.workout.duration,
+        {
+          ...generationHistory,
+          mode: session.workout.mode,
+        },
       ),
       completedWork: {
         ...emptyCompletedWork,
@@ -1111,6 +1114,24 @@ export function ActiveWorkoutView({
               </p>
             </article>
             <article>
+              <strong>Intensity techniques</strong>
+              {summary.intensityTechniques.length ? (
+                <ul>
+                  {summary.intensityTechniques.map((technique, index) => (
+                    <li key={`${technique.exerciseName}-${index}`}>
+                      {technique.exerciseName}: {technique.label}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p>No optional intensity techniques recorded.</p>
+              )}
+              <small>
+                Listed separately; excluded from base PR, progression, and
+                weekly-volume totals.
+              </small>
+            </article>
+            <article>
               <strong>Intentionally omitted</strong>
               {summary.omittedExercises.length > 0 ? (
                 <ul>
@@ -1149,21 +1170,30 @@ export function ActiveWorkoutView({
               ))}
             </details>
           )}
-          <button
-            className="review-workout-button"
-            type="button"
-            disabled={workoutSavePending}
-            onClick={() => {
-              if (workoutSavePending) return;
-              setWorkoutSavePending(true);
-              void onSaveWorkout(session.workout, session.id).finally(() =>
-                setWorkoutSavePending(false),
-              );
-            }}
-          >
-            <Icon name="check" size={17} />{' '}
-            {workoutSavePending ? 'Saving workout…' : 'Save this workout'}
-          </button>
+          <div className="routine-save-option">
+            <p>
+              <Icon name="check" size={16} /> This completed session is already
+              saved in Progress.
+            </p>
+            <button
+              type="button"
+              disabled={workoutSavePending || routineSaved}
+              onClick={() => {
+                if (workoutSavePending || routineSaved) return;
+                setWorkoutSavePending(true);
+                void onSaveWorkout(session.workout, session.id).finally(() =>
+                  setWorkoutSavePending(false),
+                );
+              }}
+            >
+              {routineSaved
+                ? 'Routine saved to Plan'
+                : workoutSavePending
+                  ? 'Saving routine…'
+                  : 'Save routine to Plan'}
+            </button>
+            <small>This optional copy can be started again from Plan.</small>
+          </div>
         </section>
         <section
           className="session-feedback"
@@ -1235,9 +1265,9 @@ export function ActiveWorkoutView({
         </header>
         <div className="phase-banner">
           <span className="status-pill">
-            <span /> Phase 8 UX enhancement
+            <span /> Phase 8 research intelligence
           </span>
-          <span className="build-label">WC-P8UXR4-0814</span>
+          <span className="build-label">WC-P8R5-0814</span>
         </div>
         <WorkoutNavigator
           canAct={false}
@@ -1389,9 +1419,9 @@ export function ActiveWorkoutView({
 
       <div className="phase-banner">
         <span className="status-pill">
-          <span /> Phase 8 UX enhancement
+          <span /> Phase 8 research intelligence
         </span>
-        <span className="build-label">WC-P8UXR4-0814</span>
+        <span className="build-label">WC-P8R5-0814</span>
       </div>
 
       <WorkoutNavigator
@@ -1592,6 +1622,41 @@ export function ActiveWorkoutView({
           </section>
         )}
 
+        {slot.kind === 'working' &&
+          move.dropSet &&
+          slot.setIndex ===
+            (block.kind === 'exercise' ? move.sets - 1 : block.rounds - 1) && (
+            <section
+              className="drop-set-heads-up"
+              aria-label="Upcoming drop set"
+            >
+              <Icon name="spark" size={18} />
+              <div>
+                <strong>Drop set ahead — prepare before this set</strong>
+                <span>
+                  {move.dropSet.method === 'leverage'
+                    ? `After the final grouped round, move immediately to an easier stable ${move.exerciseName} leverage. No recovery rest.`
+                    : `After the final grouped round, reduce the working load by ${move.dropSet.loadReductionPercent}% (${lastWorkingForMove?.weight ?? 40} ${lastWorkingForMove?.weightUnit ?? session.weightUnit} → about ${recommendedDropWeight(lastWorkingForMove?.weight ?? 40, lastWorkingForMove?.weightUnit ?? session.weightUnit, move.dropSet.loadReductionPercent)} ${lastWorkingForMove?.weightUnit ?? session.weightUnit}). The exact target updates from the load you log.`}
+                </span>
+              </div>
+            </section>
+          )}
+
+        {slot.kind === 'drop' && (
+          <section
+            className="drop-set-transition"
+            aria-label="Drop set load transition"
+          >
+            <strong>Change now · no recovery rest</strong>
+            <span>{slot.loadGuidance}</span>
+            <small>
+              Aim to change within about {slot.transitionSeconds ?? 15} seconds.
+              This intensity set is saved separately and excluded from PRs,
+              progression, and base weekly-volume totals.
+            </small>
+          </section>
+        )}
+
         <SetLogger
           key={`${slot.prescriptionId}:${move.exerciseId}:${slot.kind}:${slot.setIndex}:${slot.roundIndex}`}
           loggerKey={`${slot.prescriptionId}:${move.exerciseId}:${slot.kind}:${slot.setIndex}:${slot.roundIndex}`}
@@ -1608,6 +1673,9 @@ export function ActiveWorkoutView({
           tempo={tempo}
           units={session.weightUnit}
           initialValues={initialSetValues(session.records, move, slot)}
+          bodyweightRegression={
+            slot.kind === 'drop' && slot.dropMethod === 'leverage'
+          }
           disabled={session.status !== 'active' || setSubmissionPending}
           onSubmit={(values, responseMilliseconds) =>
             void handleLog(values, responseMilliseconds)

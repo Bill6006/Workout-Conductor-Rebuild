@@ -77,7 +77,7 @@ export function estimateWorkoutTime(
 }
 
 export function targetSecondsForDuration(
-  duration: '15' | '30' | '45' | 'default',
+  duration: '15' | '30' | '45' | '60' | 'default',
   defaultMinutes: number,
 ) {
   return (duration === 'default' ? defaultMinutes : Number(duration)) * 60;

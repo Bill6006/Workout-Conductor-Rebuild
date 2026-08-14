@@ -15,6 +15,7 @@ import {
   resumeSession,
 } from '../features/activeWorkout/session';
 import { createSavedWorkout } from '../features/savedWorkouts/schema';
+import { createPlanRevision } from '../features/planning/schema';
 import {
   CompleteBackupSchema,
   createCompleteBackup,
@@ -32,6 +33,7 @@ import {
   loadExerciseNotes,
   loadSavedWorkouts,
   loadSessionHistory,
+  loadPlanRevisions,
   migrateWeightBearingRecords,
   readRawStores,
   replaceRawStores,
@@ -42,6 +44,7 @@ import {
   saveCustomMediaVerified,
   saveExerciseNoteVerified,
   saveWorkoutVerified,
+  savePlanRevisionVerified,
   storeNames,
 } from './database';
 import { loadSettings, saveSettingsVerified } from './settings';
@@ -321,7 +324,7 @@ describe('local-first storage and data safety', () => {
     expect(await hasRollbackPoint()).toBe(false);
     expect((await loadBundle()).profile?.displayName).toBe('Demo Athlete');
     await expect(getStorageDiagnostic()).resolves.toMatchObject({
-      schemaVersion: 4,
+      schemaVersion: 5,
       protectedRecords: 3,
       recordsByStore: {
         profiles: 1,
@@ -413,6 +416,34 @@ describe('local-first storage and data safety', () => {
       exerciseId: 'pull-up',
       purpose: 'exercise-demonstration',
     });
+  });
+
+  it('backs up and restores date-effective plan revisions and migrates older complete backups missing only that new store', async () => {
+    const demo = createDemoBundle();
+    await saveBundleVerified(demo);
+    const revision = await savePlanRevisionVerified(
+      createPlanRevision(
+        demo.profile!,
+        'migration',
+        new Date('2026-08-01T12:00:00.000Z'),
+      ),
+    );
+    const backup = await createCompleteBackup();
+    expect(backup.data.stores.planRevisions).toHaveLength(1);
+    await restoreBackup(JSON.stringify(backup));
+    expect(await loadPlanRevisions()).toEqual([revision]);
+
+    const legacyComplete = structuredClone(backup);
+    delete legacyComplete.data.stores.planRevisions;
+    expect(previewBackup(JSON.stringify(legacyComplete))).toMatchObject({
+      kind: 'complete',
+    });
+
+    const tampered = structuredClone(backup);
+    tampered.data.stores.planRevisions[0].value = { id: 'bad-plan' };
+    expect(() => previewBackup(JSON.stringify(tampered))).toThrow(
+      'planRevisions/1 is invalid',
+    );
   });
 
   it('writes and reads back an active session and exercise cue memory', async () => {

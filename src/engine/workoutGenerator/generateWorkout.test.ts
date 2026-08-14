@@ -15,7 +15,7 @@ import { calculatePlannedVolume, rankMusclePriorities } from './weeklyVolume';
 
 const generatedAt = '2026-08-10T14:00:00.000Z';
 
-function demoInput(duration: '15' | '30' | '45' | 'default') {
+function demoInput(duration: '15' | '30' | '45' | '60' | 'default') {
   return generationInputFromBundle(createDemoBundle(), duration, {
     date: generatedAt,
   });
@@ -28,11 +28,12 @@ function prescriptions(blocks: WorkoutBlock[]): ExercisePrescription[] {
 }
 
 describe('Phase 3 deterministic workout generation', () => {
-  it('offers exactly one 15/30/45/Default duration model', () => {
+  it('offers exactly one 15/30/45/60/Default duration model', () => {
     expect(workoutDurationOptions.map((option) => option.value)).toEqual([
       '15',
       '30',
       '45',
+      '60',
       'default',
     ]);
   });
@@ -42,7 +43,32 @@ describe('Phase 3 deterministic workout generation', () => {
     expect(generateWorkout(input)).toEqual(generateWorkout(input));
   });
 
-  it.each(['15', '30', '45', 'default'] as const)(
+  it('enforces explicit straight, superset, and drop-set structures through engine constraints', () => {
+    const straight = generateWorkout({ ...demoInput('45'), mode: 'straight' });
+    expect(straight.mode).toBe('straight');
+    expect(straight.blocks.every((block) => block.kind === 'exercise')).toBe(
+      true,
+    );
+    expect(
+      prescriptions(straight.blocks).every((move) => move.dropSet === null),
+    ).toBe(true);
+
+    const superset = generateWorkout({ ...demoInput('45'), mode: 'superset' });
+    expect(superset.mode).toBe('superset');
+    expect(superset.blocks.some((block) => block.kind === 'superset')).toBe(
+      true,
+    );
+    expect(
+      prescriptions(superset.blocks).every((move) => move.dropSet === null),
+    ).toBe(true);
+
+    const drop = generateWorkout({ ...demoInput('60'), mode: 'drop-set' });
+    expect(drop.mode).toBe('drop-set');
+    expect(drop.blocks.every((block) => block.kind === 'exercise')).toBe(true);
+    expect(prescriptions(drop.blocks).some((move) => move.dropSet)).toBe(true);
+  });
+
+  it.each(['15', '30', '45', '60', 'default'] as const)(
     'generates a %s plan inside its time ceiling',
     (duration) => {
       const workout = generateWorkout(demoInput(duration));
@@ -57,15 +83,15 @@ describe('Phase 3 deterministic workout generation', () => {
   );
 
   it('preserves the progression anchor while expanding longer plans', () => {
-    const workouts = (['15', '30', '45', 'default'] as const).map((duration) =>
-      generateWorkout(demoInput(duration)),
+    const workouts = (['15', '30', '45', '60', 'default'] as const).map(
+      (duration) => generateWorkout(demoInput(duration)),
     );
     expect(
       workouts.map((workout) => prescriptions(workout.blocks)[0].exerciseId),
-    ).toEqual(Array(4).fill(prescriptions(workouts[0].blocks)[0].exerciseId));
-    expect(workouts[0].blocks.length).toBeLessThan(workouts[3].blocks.length);
+    ).toEqual(Array(5).fill(prescriptions(workouts[0].blocks)[0].exerciseId));
+    expect(workouts[0].blocks.length).toBeLessThan(workouts[4].blocks.length);
     expect(
-      prescriptions(workouts[3].blocks).reduce(
+      prescriptions(workouts[4].blocks).reduce(
         (total, prescription) => total + prescription.sets,
         0,
       ),

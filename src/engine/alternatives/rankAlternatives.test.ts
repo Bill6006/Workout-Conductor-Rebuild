@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { rankAlternatives, replaceExerciseSlot } from './rankAlternatives';
+import {
+  alternativeFitBoundary,
+  rankAlternatives,
+  replaceExerciseSlot,
+} from './rankAlternatives';
 import type { ConflictContext } from '../conflicts/types';
 
 const homeContext: ConflictContext = {
@@ -56,6 +60,21 @@ describe('deterministic alternative ranking foundation', () => {
     expect(
       rankAlternatives(request).ranked.map((item) => item.exercise.id),
     ).toEqual(rankAlternatives(request).ranked.map((item) => item.exercise.id));
+  });
+
+  it('states honestly when no close or compatible alternative exists', () => {
+    expect(
+      alternativeFitBoundary({
+        ranked: [
+          { score: 37 } as ReturnType<
+            typeof rankAlternatives
+          >['ranked'][number],
+        ],
+      }),
+    ).toMatch(/No close like-for-like match/);
+    expect(alternativeFitBoundary({ ranked: [] })).toMatch(
+      /No compatible alternative/,
+    );
   });
 
   it('keeps local alternative ranking well below the 200ms target', () => {

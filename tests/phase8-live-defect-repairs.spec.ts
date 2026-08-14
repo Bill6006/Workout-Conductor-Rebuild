@@ -83,7 +83,7 @@ async function openActiveWorkout(page: Page) {
   await page
     .getByRole('button', { name: 'Explore with a synthetic demo profile' })
     .click();
-  await expect(page.getByText('WC-P8UXR4-0814')).toBeVisible();
+  await expect(page.getByText('WC-P8R5-0814')).toBeVisible();
   await page
     .getByRole('combobox', { name: 'Workout length' })
     .selectOption('15');
@@ -104,7 +104,7 @@ test('P8-RT-001 migrates original profile data and preserves the exact active sl
 }) => {
   await seedOriginalDatabase(page);
   await page.goto('./', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByText('WC-P8UXR4-0814')).toBeVisible();
+  await expect(page.getByText('WC-P8R5-0814')).toBeVisible();
   await expect(
     page.getByRole('heading', { name: 'Ready, Athlete.' }),
   ).toBeVisible();
@@ -302,6 +302,23 @@ test('P8-RT-003 keeps a grouped final drop after every working round under rapid
   await expect(
     page.getByRole('form', { name: /Drop set logger for/ }),
   ).toBeVisible();
+  await expect(page.getByText('Change now · no recovery rest')).toBeVisible();
+  await expect(page.getByText(/excluded from PRs/)).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Rest timer' })).toHaveCount(0);
+  const dropLogger = page.getByRole('form', { name: /Drop set logger for/ });
+  const easierLeverage = dropLogger.getByText('Easier leverage');
+  if (await easierLeverage.isVisible()) {
+    await expect(dropLogger.getByText('Load method')).toBeVisible();
+    await expect(
+      dropLogger.getByRole('spinbutton', { name: 'Weight' }),
+    ).toHaveCount(0);
+  } else {
+    const dropWeight = Number(
+      await dropLogger.getByRole('spinbutton', { name: 'Weight' }).inputValue(),
+    );
+    expect(dropWeight).toBeGreaterThan(0);
+    expect(dropWeight).toBeLessThan(40);
+  }
   await expect(page.locator('.active-exercise-card__topline')).toContainText(
     'Final intensity set',
   );
@@ -313,7 +330,7 @@ test('P8-RT-004 exports and restores a complete backup containing original and m
 }) => {
   await seedOriginalDatabase(page);
   await page.goto('./', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByText('WC-P8UXR4-0814')).toBeVisible();
+  await expect(page.getByText('WC-P8R5-0814')).toBeVisible();
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.getByText('Backup & diagnostics').click();
 

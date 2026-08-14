@@ -30,6 +30,18 @@ export type AlternativeRankingResult = {
   excluded: ExcludedAlternative[];
 };
 
+export function alternativeFitBoundary(
+  result: Pick<AlternativeRankingResult, 'ranked'>,
+): string | null {
+  if (result.ranked.length === 0) {
+    return 'No compatible alternative is available for the current equipment, limitations, and training role.';
+  }
+  if (result.ranked[0].score < 60) {
+    return 'No close like-for-like match is available. The listed options are compromises, not equivalent replacements.';
+  }
+  return null;
+}
+
 export type AlternativeRequest = {
   currentExerciseId: string;
   selectedExerciseIds: string[];

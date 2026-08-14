@@ -1,16 +1,16 @@
 # Phase 8 Cutover Report
 
-Status: **YELLOW — implementation complete; awaiting Android review**
+Status: **YELLOW — implementation complete; awaiting independent adversarial retest**
 
-Release: `0.8.8`
+Release: `0.8.9`
 
-Build marker: `WC-P8UXR4-0814`
+Build marker: `WC-P8R5-0814`
 
-Enhancement status: active workouts retain durable navigation and completion safety. This repair keeps the prescribed four-part tempo indicator visible with packaged or custom GIF media and makes each drain, hold, refill, and restart phase duration exact. See the [tempo-guide repair report](phase-reports/PHASE_8_TEMPO_GUIDE_REPAIR.md). Final approval remains withheld pending a separate adversarial retest.
+Enhancement status: active workouts retain durable navigation, completion safety, and phase-accurate packaged/custom-GIF tempo guidance. R5 adds history-backed workout intelligence, a date-effective attendance calendar, a real Alternative Finder, expanded conventional exercise coverage, explicit time/structure controls, and a corrected drop-set boundary. See the [R5 report](phase-reports/PHASE_8_RESEARCH_INTELLIGENCE_R5.md). Final approval remains withheld pending a separate adversarial retest.
 
 ## Release scope
 
-- complete, raw-record backup of all nine protected stores and local settings
+- complete, raw-record backup of all ten protected stores and local settings
 - no-change import preview, explicit confirmation, exact read-back verification, automatic failure rollback, and manual post-restore rollback
 - safe migration of the documented v1 foundation export without deleting workout history or newer protected content
 - verified writes for critical records, compact storage diagnostics, and temporary-only cleanup
@@ -35,6 +35,11 @@ Enhancement status: active workouts retain durable navigation and completion saf
 - exact focus restoration to mouse, touch, and keyboard modal launchers with a safe fallback
 - post-round final drop ordering for supersets and circuits, including skip, defer, reload, pause/resume, and rapid activation
 - complete backup validation and exact restore for original and migrated profiles together without weakening tamper rejection
+- date-effective protected plan revisions and a keyboard-accessible monthly completed/missed schedule view
+- rolling 7/14/28-day completed-history context for initial generation, same-day follow-ups, recalibration, and alternatives
+- 15/30/45/60/default time ceilings plus Auto, Straight, Superset, and Drop-set engine constraints
+- a contextual Alternative Finder and a 50-movement standard catalog with executable registry coverage
+- advance drop-set load/leverage guidance, no ordinary pre-drop rest, and separate intensity-technique analytics
 
 ## Data and privacy boundary
 
@@ -46,7 +51,7 @@ The local release matrix passes the complete unit, integration, Android Chromium
 
 ## Android review
 
-The user manually passed deployed valid backup/restore, true offline reload, real Android GIF selection and persistence, portrait/landscape behavior, the Android software keyboard, text scaling, and runtime reduced motion on the preceding release. The custom-GIF tempo indicator reported during that review is repaired here and requires independent deployed retesting. Malformed/tampered restore rejection and physical-keyboard operation remain manual gates unless genuinely exercised. No Phase 9 is defined.
+The user manually passed deployed valid backup/restore, true offline reload, real Android GIF selection and persistence, portrait/landscape behavior, the Android software keyboard, text scaling, and runtime reduced motion on a preceding release. Those are historical inputs, not claims that the new R5 build was physically exercised. Malformed/tampered restore rejection and physical-keyboard operation remain manual gates unless genuinely exercised. No Phase 9 is defined.
 
 ## Evidence
 

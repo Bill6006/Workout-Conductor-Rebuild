@@ -17,11 +17,13 @@ import {
 } from './storage/backup';
 import {
   loadBundle,
+  loadPlanRevisions,
   loadSessionHistory,
   loadSavedWorkouts,
   migrateWeightBearingRecords,
   saveActiveSessionVerified,
   saveBundleVerified,
+  savePlanRevisionVerified,
   saveWorkoutVerified,
 } from './storage/database';
 import { saveSettingsVerified } from './storage/settings';
@@ -40,6 +42,10 @@ import {
   PWA_OFFLINE_READY_EVENT,
   PWA_UPDATE_READY_EVENT,
 } from './pwaEvents';
+import {
+  createPlanRevision,
+  type PlanRevision,
+} from './features/planning/schema';
 
 type TabId = 'today' | 'workout' | 'catalog' | 'progress' | 'plan' | 'settings';
 
@@ -55,13 +61,27 @@ const navItems: { id: TabId; label: string; icon: IconName }[] = [
 async function loadLocalState() {
   const storedBundle = await loadBundle();
   await migrateWeightBearingRecords(storedBundle.settings.units);
-  const [storedHistory, storedSaved] = await Promise.all([
+  const [storedHistory, storedSaved, storedPlanRevisions] = await Promise.all([
     loadSessionHistory(storedBundle.settings.units),
     loadSavedWorkouts(),
+    loadPlanRevisions(),
   ]);
+  if (storedPlanRevisions.length === 0 && storedBundle.profile) {
+    storedPlanRevisions.push(
+      await savePlanRevisionVerified(
+        createPlanRevision(storedBundle.profile, 'migration'),
+      ),
+    );
+  }
   const storedSession =
     storedHistory.find((session) => session.status !== 'completed') ?? null;
-  return { storedBundle, storedSession, storedHistory, storedSaved };
+  return {
+    storedBundle,
+    storedSession,
+    storedHistory,
+    storedSaved,
+    storedPlanRevisions,
+  };
 }
 
 export default function App() {
@@ -79,6 +99,7 @@ export default function App() {
   );
   const [sessionHistory, setSessionHistory] = useState<ActiveSession[]>([]);
   const [savedWorkouts, setSavedWorkouts] = useState<SavedWorkout[]>([]);
+  const [planRevisions, setPlanRevisions] = useState<PlanRevision[]>([]);
   const [storageEpoch, setStorageEpoch] = useState(0);
   const [updateReady, setUpdateReady] = useState(false);
   const [offlineReady, setOfflineReady] = useState(false);
@@ -89,20 +110,29 @@ export default function App() {
   useEffect(() => {
     let active = true;
     void loadLocalState()
-      .then(({ storedBundle, storedSession, storedHistory, storedSaved }) => {
-        if (!active) return;
-        setBundle(storedBundle);
-        setActiveSession(storedSession);
-        setSessionHistory(storedHistory);
-        setSavedWorkouts(storedSaved);
-        setStorageError(null);
-        setShowOnboarding(!storedBundle.profile?.onboardingComplete);
-        setStorageStatus(
-          storedSession
-            ? 'Active workout restored from verified local storage.'
-            : 'IndexedDB and local settings are available. Critical saves use read-back verification.',
-        );
-      })
+      .then(
+        ({
+          storedBundle,
+          storedSession,
+          storedHistory,
+          storedSaved,
+          storedPlanRevisions,
+        }) => {
+          if (!active) return;
+          setBundle(storedBundle);
+          setActiveSession(storedSession);
+          setSessionHistory(storedHistory);
+          setSavedWorkouts(storedSaved);
+          setPlanRevisions(storedPlanRevisions);
+          setStorageError(null);
+          setShowOnboarding(!storedBundle.profile?.onboardingComplete);
+          setStorageStatus(
+            storedSession
+              ? 'Active workout restored from verified local storage.'
+              : 'IndexedDB and local settings are available. Critical saves use read-back verification.',
+          );
+        },
+      )
       .catch((error: unknown) => {
         if (!active) return;
         const detail =
@@ -133,9 +163,25 @@ export default function App() {
     };
   }, []);
 
-  async function saveCompleteBundle(nextBundle: AppBundle) {
+  async function saveCompleteBundle(
+    nextBundle: AppBundle,
+    source: PlanRevision['source'] = 'settings',
+  ) {
     const settings = saveSettingsVerified(nextBundle.settings);
     const verified = await saveBundleVerified({ ...nextBundle, settings });
+    const latestPlan = planRevisions.at(-1);
+    if (
+      verified.profile &&
+      (!latestPlan ||
+        latestPlan.weeklyFrequency !== verified.profile.weeklyFrequency ||
+        JSON.stringify(latestPlan.availableDays) !==
+          JSON.stringify(verified.profile.availableDays))
+    ) {
+      const revision = await savePlanRevisionVerified(
+        createPlanRevision(verified.profile, source),
+      );
+      setPlanRevisions((current) => [...current, revision]);
+    }
     setBundle({ ...verified, settings });
     setStorageStatus(
       'Latest profile save was written, read back, schema-validated, and verified.',
@@ -146,7 +192,7 @@ export default function App() {
   }
 
   async function completeOnboarding(nextBundle: AppBundle) {
-    await saveCompleteBundle(nextBundle);
+    await saveCompleteBundle(nextBundle, 'onboarding');
     setShowOnboarding(false);
     setActiveTab('today');
     setAnnouncement(
@@ -157,12 +203,18 @@ export default function App() {
   }
 
   async function refreshFromStorage() {
-    const { storedBundle, storedSession, storedHistory, storedSaved } =
-      await loadLocalState();
+    const {
+      storedBundle,
+      storedSession,
+      storedHistory,
+      storedSaved,
+      storedPlanRevisions,
+    } = await loadLocalState();
     setBundle(storedBundle);
     setActiveSession(storedSession);
     setSessionHistory(storedHistory);
     setSavedWorkouts(storedSaved);
+    setPlanRevisions(storedPlanRevisions);
     setStorageEpoch((current) => current + 1);
   }
 
@@ -290,7 +342,7 @@ export default function App() {
         </div>
         <span className="loading-pulse" />
         <p>Opening your private training space…</p>
-        <small>WC-P8UXR4-0814</small>
+        <small>WC-P8R5-0814</small>
       </div>
     );
   }
@@ -311,7 +363,7 @@ export default function App() {
         <button type="button" onClick={() => window.location.reload()}>
           Retry protected storage
         </button>
-        <small>WC-P8UXR4-0814</small>
+        <small>WC-P8R5-0814</small>
       </main>
     );
   }
@@ -390,19 +442,35 @@ export default function App() {
               onSaveWorkout={(workout, sessionId) =>
                 saveWorkout(workout, 'completed', sessionId)
               }
+              routineSaved={savedWorkouts.some(
+                (saved) => saved.sourceSessionId === activeSession.id,
+              )}
             />
           ) : (
-            <CatalogView />
+            <CatalogView
+              bundle={bundle}
+              activeSession={activeSession}
+              sessionHistory={sessionHistory}
+              onOpenWorkout={() => setActiveTab('workout')}
+            />
           ))}
         {activeTab === 'progress' && (
           <ProgressView bundle={bundle} sessionHistory={sessionHistory} />
         )}
-        {activeTab === 'catalog' && <CatalogView />}
+        {activeTab === 'catalog' && (
+          <CatalogView
+            bundle={bundle}
+            activeSession={activeSession}
+            sessionHistory={sessionHistory}
+            onOpenWorkout={() => setActiveTab('workout')}
+          />
+        )}
         {activeTab === 'plan' && (
           <PlanView
             bundle={bundle}
             sessionHistory={sessionHistory}
             savedWorkouts={savedWorkouts}
+            planRevisions={planRevisions}
             onStartSaved={startWorkout}
           />
         )}

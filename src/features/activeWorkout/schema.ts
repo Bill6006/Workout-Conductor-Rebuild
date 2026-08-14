@@ -36,6 +36,8 @@ export const ActiveSetRecordSchema = z.object({
   countsTowardProgression: z.boolean(),
   countsTowardPr: z.boolean(),
   countsTowardWorkingVolume: z.boolean(),
+  intensityTechnique: z.enum(['drop-set']).nullable().default(null),
+  techniqueNote: z.string().max(200).nullable().default(null),
 });
 
 export const ReadinessCheckSchema = z.object({
@@ -286,13 +288,16 @@ export function migrateActiveSession(
         weightUnit: record.weightUnit ?? weightUnit,
         reps: legacyInvalidReps ? MAX_SET_REPS : record.reps,
         legacyInvalidReps,
-        countsTowardProgression: legacyInvalidReps
-          ? false
-          : record.countsTowardProgression,
-        countsTowardPr: legacyInvalidReps ? false : record.countsTowardPr,
-        countsTowardWorkingVolume: legacyInvalidReps
-          ? false
-          : record.countsTowardWorkingVolume,
+        countsTowardProgression:
+          !legacyInvalidReps && record.kind === 'working',
+        countsTowardPr: !legacyInvalidReps && record.kind === 'working',
+        countsTowardWorkingVolume:
+          !legacyInvalidReps && record.kind === 'working',
+        intensityTechnique: record.kind === 'drop' ? 'drop-set' : null,
+        techniqueNote:
+          record.kind === 'drop'
+            ? (record.techniqueNote ?? 'Legacy drop set')
+            : null,
       };
     }),
   });
@@ -325,4 +330,7 @@ export type SetSlot = {
   targetRir: number;
   restSeconds: number;
   loadGuidance: string;
+  dropMethod?: 'load' | 'leverage';
+  loadReductionPercent?: number;
+  transitionSeconds?: number;
 };

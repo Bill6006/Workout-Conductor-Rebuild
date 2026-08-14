@@ -65,6 +65,10 @@ export type SessionSummary = {
   musclesTrained: MuscleCoverage[];
   recoveryNote: string;
   substitutions: number;
+  intensityTechniques: Array<{
+    exerciseName: string;
+    label: string;
+  }>;
   omittedExercises: string[];
   nextTargets: string[];
   nextFocus: string;

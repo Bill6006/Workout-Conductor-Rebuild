@@ -16,7 +16,7 @@ test('runs the Phase 8 accepted app on the adaptive coaching foundation and pers
   await expect(
     page.getByRole('heading', { name: 'Ready, Demo.' }),
   ).toBeVisible();
-  await expect(page.getByText('Phase 8 UX enhancement')).toBeVisible();
+  await expect(page.getByText('Phase 8 research intelligence')).toBeVisible();
   await expect(page.getByText('Adaptive Coach', { exact: true })).toBeVisible();
   await page.getByRole('combobox', { name: 'Energy' }).selectOption('2');
   await page.getByRole('button', { name: 'Apply readiness' }).click();
@@ -26,7 +26,7 @@ test('runs the Phase 8 accepted app on the adaptive coaching foundation and pers
   ).toBeVisible();
 
   const duration = page.getByRole('combobox', { name: 'Workout length' });
-  for (const option of ['15', '30', '45', 'default']) {
+  for (const option of ['15', '30', '45', '60', 'default']) {
     await duration.selectOption(option);
     await expect(
       page.getByRole('status', { name: 'Recalibrating workout' }),
@@ -35,8 +35,8 @@ test('runs the Phase 8 accepted app on the adaptive coaching foundation and pers
     await expect(
       page.getByText(
         option === 'default'
-          ? /Recalibrated to default time/
-          : new RegExp(`Recalibrated to ${option} min`),
+          ? /(Recalibrated to|Rechecked) default time/
+          : new RegExp(`(Recalibrated to|Rechecked) ${option} min`),
       ),
     ).toBeVisible();
     await expect(
@@ -92,17 +92,15 @@ test('browses the catalog and applies one safe preview alternative', async ({
     page.getByRole('heading', { name: 'Catalog', level: 1 }),
   ).toBeVisible();
   await expect(
-    page.getByText('28 movements. Every decision has metadata.'),
+    page.getByText('50 standard movements. Every decision has metadata.'),
   ).toBeVisible();
   await expect(page.getByText(/incompatible options hidden/)).toBeVisible();
 
   await page
-    .getByRole('button', { name: 'Use Push-Up in preview slot' })
+    .getByRole('button', { name: 'Inspect Push-Up as an alternative' })
     .click();
   await expect(
-    page.getByText(
-      'Dumbbell Bench Press → Push-Up. Only this preview slot changed.',
-    ),
+    page.getByText(/Dumbbell Bench Press remains unchanged until/),
   ).toBeVisible();
 
   await page.getByRole('searchbox', { name: 'Search catalog' }).fill('RDL');
@@ -110,7 +108,9 @@ test('browses the catalog and applies one safe preview alternative', async ({
     page.getByRole('button', { name: 'Inspect Barbell Romanian Deadlift' }),
   ).toBeVisible();
   await expect(
-    page.getByRole('button', { name: 'Inspect Dumbbell Bench Press' }),
+    page
+      .locator('.catalog-list')
+      .getByRole('button', { name: 'Inspect Dumbbell Bench Press' }),
   ).toHaveCount(0);
 });
 
@@ -151,7 +151,7 @@ test('logs, edits, replaces, pauses, and resumes one durable active workout', as
     .click();
   await page.getByRole('button', { name: 'Start workout' }).click();
   await expect(page.getByText('Active workout')).toBeVisible();
-  await expect(page.getByText('WC-P8UXR4-0814')).toBeVisible();
+  await expect(page.getByText('WC-P8R5-0814')).toBeVisible();
   await expect(page.getByText('Adaptive Coach', { exact: true })).toBeVisible();
 
   await page.getByRole('button', { name: /Open demonstration for/ }).click();

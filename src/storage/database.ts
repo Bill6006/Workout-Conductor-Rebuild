@@ -34,9 +34,13 @@ import {
   type CoachTarget,
   type CustomMediaBlob,
 } from './userContent';
+import {
+  PlanRevisionSchema,
+  type PlanRevision,
+} from '../features/planning/schema';
 
 export const DATABASE_NAME = 'workout-conductor';
-export const DATABASE_VERSION = 4;
+export const DATABASE_VERSION = 5;
 
 export const storeNames = {
   profiles: 'profiles',
@@ -48,6 +52,7 @@ export const storeNames = {
   customExercises: 'customExercises',
   customMedia: 'customMedia',
   coachTargets: 'coachTargets',
+  planRevisions: 'planRevisions',
   restorePoints: 'restorePoints',
 } as const;
 
@@ -63,6 +68,7 @@ export const protectedStoreNames = [
   storeNames.customExercises,
   storeNames.customMedia,
   storeNames.coachTargets,
+  storeNames.planRevisions,
 ] as const;
 
 export const temporaryStoreNames = [storeNames.restorePoints] as const;
@@ -344,6 +350,21 @@ export async function saveBundleVerified(
   );
 
   return { ...bundle, profile, equipmentProfiles, locations };
+}
+
+export function savePlanRevisionVerified(revision: PlanRevision) {
+  return writeRecordVerified(
+    storeNames.planRevisions,
+    revision,
+    PlanRevisionSchema,
+  );
+}
+
+export function loadPlanRevisions() {
+  return getAllRecords(storeNames.planRevisions, PlanRevisionSchema).then(
+    (items) =>
+      items.sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom)),
+  );
 }
 
 export async function loadBundle(): Promise<AppBundle> {

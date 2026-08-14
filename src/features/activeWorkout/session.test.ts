@@ -27,6 +27,8 @@ import {
   undoLastSet,
   workoutCompletion,
   workoutExerciseQueue,
+  recommendedDropWeight,
+  recommendedRestAfterSet,
 } from './session';
 
 const startedAt = '2026-08-10T18:00:00.000Z';
@@ -77,6 +79,111 @@ function logged(session = createActiveSession(generated(), startedAt)) {
 }
 
 describe('Phase 5 durable active workout session', () => {
+  it('calculates unit-safe drop targets, skips pre-drop recovery, and excludes the intensity record from base analytics', () => {
+    const base = generated();
+    const source = blockMoves(base.blocks[0])[0];
+    const workout = generatedWorkoutSchema.parse({
+      ...base,
+      id: 'drop-load-regression',
+      blocks: [
+        {
+          kind: 'exercise',
+          blockId: 'drop-only',
+          canonicalRow: source.exerciseName,
+          prescription: {
+            ...source,
+            sets: 2,
+            warmupSets: [],
+            dropSet: {
+              reps: '8–15',
+              loadReductionPercent: 25,
+              method: 'load',
+              transitionSeconds: 15,
+              rationale: 'Regression fixture for a final load drop.',
+            },
+          },
+        },
+      ],
+    });
+    let session = createActiveSession(workout, startedAt);
+    while (nextSetSlot(session)?.kind === 'working') {
+      const slot = nextSetSlot(session)!;
+      const loggedSession = logSet(
+        session,
+        slot,
+        { weight: 43, reps: 9, rir: 1 },
+        startedAt,
+      );
+      if (nextSetSlot(loggedSession)?.kind === 'drop') {
+        expect(recommendedRestAfterSet(loggedSession, slot)).toBe(0);
+      }
+      session = loggedSession;
+    }
+    const drop = nextSetSlot(session)!;
+    expect(drop).toMatchObject({
+      kind: 'drop',
+      dropMethod: 'load',
+      loadReductionPercent: 25,
+    });
+    expect(initialSetValues(session.records, source, drop).weight).toBe(32.5);
+    expect(recommendedDropWeight(43, 'kg')).toBe(32);
+    session = logSet(
+      session,
+      drop,
+      { weight: 32.5, reps: 12, rir: 0 },
+      startedAt,
+    );
+    expect(session.records.at(-1)).toMatchObject({
+      kind: 'drop',
+      countsTowardProgression: false,
+      countsTowardPr: false,
+      countsTowardWorkingVolume: false,
+      intensityTechnique: 'drop-set',
+    });
+  });
+
+  it('uses an easier-leverage bodyweight regression instead of external-load arithmetic', () => {
+    const base = generated();
+    const source = blockMoves(base.blocks[0])[0];
+    const workout = generatedWorkoutSchema.parse({
+      ...base,
+      id: 'drop-leverage-regression',
+      blocks: [
+        {
+          kind: 'exercise',
+          blockId: 'bodyweight-drop',
+          canonicalRow: 'Push-Up',
+          prescription: {
+            ...source,
+            exerciseId: 'push-up',
+            exerciseName: 'Push-Up',
+            sets: 1,
+            warmupSets: [],
+            dropSet: {
+              reps: 'Clean reps to 1 RIR',
+              loadReductionPercent: 25,
+              method: 'leverage',
+              transitionSeconds: 15,
+              rationale: 'Use a more upright hand position.',
+            },
+          },
+        },
+      ],
+    });
+    let session = createActiveSession(workout, startedAt);
+    session = logSet(
+      session,
+      nextSetSlot(session)!,
+      { weight: 0, reps: 12, rir: 1 },
+      startedAt,
+    );
+    const drop = nextSetSlot(session)!;
+    expect(drop.loadGuidance).toContain('easier stable leverage');
+    expect(
+      initialSetValues(session.records, blockMoves(workout.blocks[0])[0], drop)
+        .weight,
+    ).toBe(0);
+  });
   it('creates one validated resumable source of truth', () => {
     const session = createActiveSession(generated(), startedAt);
     expect(ActiveSessionSchema.safeParse(session).success).toBe(true);

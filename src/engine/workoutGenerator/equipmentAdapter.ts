@@ -14,6 +14,11 @@ const profileEquipment: Record<string, EquipmentId[]> = {
     'chest-press-machine',
     'leg-press',
     'leg-curl',
+    'leg-extension',
+    'pec-deck',
+    'shoulder-press-machine',
+    'assisted-pullup-dip',
+    'calf-raise-machine',
   ],
   'Squat rack': ['squat-rack'],
 };

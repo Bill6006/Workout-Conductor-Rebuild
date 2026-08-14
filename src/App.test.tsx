@@ -203,8 +203,10 @@ describe('Phase 8 final acceptance', () => {
   it('saves a synthetic demo and renders the useful Today dashboard', async () => {
     await openSyntheticDemo();
 
-    expect(screen.getByText('Phase 8 UX enhancement')).toBeInTheDocument();
-    expect(screen.getByText('WC-P8UXR4-0814')).toBeInTheDocument();
+    expect(
+      screen.getByText('Phase 8 research intelligence'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('WC-P8R5-0814')).toBeInTheDocument();
     expect(screen.getByText('Adaptive Coach')).toBeInTheDocument();
     expect(screen.getByText('Generated locally')).toBeInTheDocument();
     const duration = screen.getByRole('combobox', { name: 'Workout length' });
@@ -213,7 +215,7 @@ describe('Phase 8 final acceptance', () => {
       Array.from((duration as HTMLSelectElement).options).map(
         (option) => option.value,
       ),
-    ).toEqual(['15', '30', '45', 'default']);
+    ).toEqual(['15', '30', '45', '60', 'default']);
     expect(
       screen.getByRole('navigation', { name: 'Primary navigation' }),
     ).toBeInTheDocument();
@@ -297,19 +299,17 @@ describe('Phase 8 final acceptance', () => {
       await screen.findByRole('heading', { name: 'Catalog', level: 1 }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText('28 movements. Every decision has metadata.'),
+      screen.getByText('50 standard movements. Every decision has metadata.'),
     ).toBeInTheDocument();
     expect(screen.getByText(/incompatible options hidden/)).toBeInTheDocument();
 
     fireEvent.click(
       screen.getByRole('button', {
-        name: 'Use Push-Up in preview slot',
+        name: 'Inspect Push-Up as an alternative',
       }),
     );
     expect(
-      screen.getByText(
-        'Dumbbell Bench Press → Push-Up. Only this preview slot changed.',
-      ),
+      screen.getByText(/Dumbbell Bench Press remains unchanged until/),
     ).toBeInTheDocument();
   });
 
@@ -388,7 +388,7 @@ describe('Phase 8 final acceptance', () => {
   it('starts a premium active workout and logs a one-tap prefilled set', async () => {
     await startActiveWorkout();
     expect(screen.getByText('Active workout')).toBeInTheDocument();
-    expect(screen.getByText('WC-P8UXR4-0814')).toBeInTheDocument();
+    expect(screen.getByText('WC-P8R5-0814')).toBeInTheDocument();
     expect(screen.getByRole('spinbutton', { name: 'Weight' })).toHaveValue(40);
     expect(screen.getByRole('spinbutton', { name: 'Reps' })).toHaveValue(8);
     expect(screen.getByRole('spinbutton', { name: 'RIR' })).toHaveValue(2);

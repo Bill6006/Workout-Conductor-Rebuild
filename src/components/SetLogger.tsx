@@ -15,6 +15,7 @@ type SetLoggerProps = {
   units: 'lb' | 'kg';
   initialValues: SetValues;
   submitLabel?: string;
+  bodyweightRegression?: boolean;
   disabled?: boolean;
   onSubmit: (values: SetValues, responseMilliseconds: number) => void;
 };
@@ -29,6 +30,7 @@ export function SetLogger({
   units,
   initialValues,
   submitLabel = 'Log set',
+  bodyweightRegression = false,
   disabled = false,
   onSubmit,
 }: SetLoggerProps) {
@@ -83,22 +85,32 @@ export function SetLogger({
         </div>
       </div>
       <div className="set-logger__fields">
-        <label>
-          <span>Weight</span>
-          <div className="set-logger__input-wrap">
-            <input
-              aria-label="Weight"
-              inputMode="decimal"
-              type="number"
-              min="0"
-              step="0.5"
-              value={weight}
-              disabled={disabled}
-              onChange={(event) => setWeight(event.target.value)}
-            />
-            <small>{units}</small>
+        {bodyweightRegression ? (
+          <div
+            className="set-logger__technique"
+            aria-label="Load method: easier bodyweight leverage"
+          >
+            <span>Load method</span>
+            <strong>Easier leverage</strong>
           </div>
-        </label>
+        ) : (
+          <label>
+            <span>Weight</span>
+            <div className="set-logger__input-wrap">
+              <input
+                aria-label="Weight"
+                inputMode="decimal"
+                type="number"
+                min="0"
+                step="0.5"
+                value={weight}
+                disabled={disabled}
+                onChange={(event) => setWeight(event.target.value)}
+              />
+              <small>{units}</small>
+            </div>
+          </label>
+        )}
         <label>
           <span>Reps</span>
           <input

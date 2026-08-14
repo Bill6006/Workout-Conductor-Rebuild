@@ -32,12 +32,18 @@ export const movementPatternIds = [
   'lunge',
   'hinge',
   'knee-flexion',
+  'knee-extension',
+  'hip-extension',
+  'plantar-flexion',
   'elbow-flexion',
   'elbow-extension',
   'shoulder-abduction',
   'scapular-retraction',
   'anti-extension',
   'anti-rotation',
+  'trunk-flexion',
+  'lateral-flexion',
+  'loaded-carry',
 ] as const;
 
 export const equipmentIds = [
@@ -54,6 +60,12 @@ export const equipmentIds = [
   'chest-press-machine',
   'leg-press',
   'leg-curl',
+  'leg-extension',
+  'pec-deck',
+  'shoulder-press-machine',
+  'assisted-pullup-dip',
+  'dip-station',
+  'calf-raise-machine',
   'resistance-band',
   'exercise-mat',
 ] as const;
@@ -68,6 +80,9 @@ export const progressionFamilyIds = [
   'single-leg-squat',
   'hip-hinge',
   'knee-flexion',
+  'knee-extension',
+  'hip-extension',
+  'plantar-flexion',
   'lateral-raise',
   'rear-delt',
   'elbow-flexion-supinated',
@@ -75,6 +90,9 @@ export const progressionFamilyIds = [
   'elbow-extension',
   'anti-extension',
   'anti-rotation',
+  'trunk-flexion',
+  'lateral-flexion',
+  'loaded-carry',
 ] as const;
 
 export const jointStressTags = [

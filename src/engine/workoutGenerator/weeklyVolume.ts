@@ -163,11 +163,9 @@ export function calculatePlannedVolume(blocks: WorkoutBlock[]): WeeklyVolume {
     const prescriptions =
       block.kind === 'exercise' ? [block.prescription] : block.moves;
     prescriptions.forEach((prescription) => {
-      addPrescriptionVolume(
-        volume,
-        prescription.exerciseId,
-        prescription.sets + (prescription.dropSet ? 1 : 0),
-      );
+      // Optional intensity techniques are reported separately. They must not
+      // inflate the base weekly-volume plan used by future recommendations.
+      addPrescriptionVolume(volume, prescription.exerciseId, prescription.sets);
     });
   });
   return volume;

@@ -21,6 +21,29 @@ export function initialSetValues(
   move: ExercisePrescription,
   slot: SetSlot,
 ) {
+  if (slot.kind === 'drop') {
+    const working = records
+      .filter(
+        (record) =>
+          record.prescriptionId === move.prescriptionId &&
+          record.kind === 'working' &&
+          record.legacyInvalidReps === null,
+      )
+      .at(-1);
+    const previousWeight = working?.weight ?? 40;
+    return {
+      weight:
+        slot.dropMethod === 'leverage'
+          ? 0
+          : recommendedDropWeight(
+              previousWeight,
+              working?.weightUnit ?? 'lb',
+              slot.loadReductionPercent ?? 25,
+            ),
+      reps: move.repRange.max,
+      rir: slot.targetRir,
+    };
+  }
   const previous = records
     .filter(
       (record) =>
@@ -40,6 +63,18 @@ export function initialSetValues(
         : move.repRange.max),
     rir: previous?.rir ?? slot.targetRir,
   };
+}
+
+export function recommendedDropWeight(
+  workingWeight: number,
+  unit: 'lb' | 'kg',
+  reductionPercent = 25,
+) {
+  if (workingWeight <= 0) return 0;
+  const increment = unit === 'lb' ? 2.5 : 1;
+  const target = workingWeight * (1 - reductionPercent / 100);
+  const rounded = Math.round(target / increment) * increment;
+  return Number(Math.max(increment, rounded).toFixed(2));
 }
 
 function sessionTimestamp(now: Date | string = new Date()) {
@@ -112,6 +147,29 @@ function recordsFor(
       record.prescriptionId === prescriptionId &&
       (!kind || record.kind === kind),
   );
+}
+
+function dropGuidance(session: ActiveSession, move: ExercisePrescription) {
+  if (!move.dropSet) return null;
+  const previous = session.records
+    .filter(
+      (record) =>
+        record.prescriptionId === move.prescriptionId &&
+        record.kind === 'working' &&
+        record.legacyInvalidReps === null,
+    )
+    .at(-1);
+  if (move.dropSet.method === 'leverage') {
+    return `Change immediately to an easier stable leverage for ${move.exerciseName}; no recovery rest.`;
+  }
+  const source = previous?.weight ?? 40;
+  const unit = previous?.weightUnit ?? session.weightUnit;
+  const target = recommendedDropWeight(
+    source,
+    unit,
+    move.dropSet.loadReductionPercent,
+  );
+  return `Change load now: ${source} ${unit} → ${target} ${unit} (${move.dropSet.loadReductionPercent}% target reduction, rounded to a usable increment). No recovery rest.`;
 }
 
 function moveSlot(
@@ -194,7 +252,10 @@ function moveSlot(
       targetReps: move.dropSet.reps,
       targetRir: 0,
       restSeconds: 0,
-      loadGuidance: `Reduce load ${move.dropSet.loadReductionPercent}% · ${move.dropSet.rationale}`,
+      loadGuidance: dropGuidance(session, move) ?? move.dropSet.rationale,
+      dropMethod: move.dropSet.method,
+      loadReductionPercent: move.dropSet.loadReductionPercent,
+      transitionSeconds: move.dropSet.transitionSeconds,
     };
     if (!slotConsumed(session, candidate)) return candidate;
   }
@@ -270,7 +331,10 @@ function nextSlotInBlock(
         targetReps: move.dropSet.reps,
         targetRir: 0,
         restSeconds: 0,
-        loadGuidance: `Reduce load ${move.dropSet.loadReductionPercent}% · ${move.dropSet.rationale}`,
+        loadGuidance: dropGuidance(session, move) ?? move.dropSet.rationale,
+        dropMethod: move.dropSet.method,
+        loadReductionPercent: move.dropSet.loadReductionPercent,
+        transitionSeconds: move.dropSet.transitionSeconds,
       };
       if (!slotConsumed(session, candidate)) return candidate;
     }
@@ -293,6 +357,26 @@ export function nextSetSlot(session: ActiveSession): SetSlot | null {
     if (slot) return slot;
   }
   return null;
+}
+
+export function recommendedRestAfterSet(
+  loggedSession: ActiveSession,
+  completedSlot: SetSlot,
+) {
+  const upcoming = nextSetSlot(loggedSession);
+  if (!upcoming || upcoming.kind === 'drop') return 0;
+  const block = loggedSession.workout.blocks[completedSlot.blockIndex];
+  if (!block) return 0;
+  if (completedSlot.kind === 'drop') {
+    const move = blockMoves(block).find(
+      (candidate) => candidate.prescriptionId === completedSlot.prescriptionId,
+    );
+    return move?.restSeconds ?? 0;
+  }
+  return block.kind === 'exercise' ||
+    completedSlot.moveIndex === blockMoves(block).length - 1
+    ? completedSlot.restSeconds
+    : 0;
 }
 
 export function logSet(
@@ -350,9 +434,16 @@ export function logSet(
     painReported: false,
     completedAt: timestamp,
     editedAt: null,
-    countsTowardProgression: slot.kind !== 'warmup',
-    countsTowardPr: slot.kind !== 'warmup',
-    countsTowardWorkingVolume: slot.kind !== 'warmup',
+    countsTowardProgression: slot.kind === 'working',
+    countsTowardPr: slot.kind === 'working',
+    countsTowardWorkingVolume: slot.kind === 'working',
+    intensityTechnique: slot.kind === 'drop' ? 'drop-set' : null,
+    techniqueNote:
+      slot.kind === 'drop'
+        ? slot.dropMethod === 'leverage'
+          ? 'Bodyweight regression drop set'
+          : `${slot.loadReductionPercent ?? 25}% load-reduction drop set`
+        : null,
   };
   const candidate = ActiveSessionSchema.parse({
     ...session,
@@ -393,9 +484,9 @@ export function editSet(
             ...record,
             ...values,
             legacyInvalidReps: null,
-            countsTowardProgression: record.kind !== 'warmup',
-            countsTowardPr: record.kind !== 'warmup',
-            countsTowardWorkingVolume: record.kind !== 'warmup',
+            countsTowardProgression: record.kind === 'working',
+            countsTowardPr: record.kind === 'working',
+            countsTowardWorkingVolume: record.kind === 'working',
             editedAt: timestamp,
           }
         : record,
