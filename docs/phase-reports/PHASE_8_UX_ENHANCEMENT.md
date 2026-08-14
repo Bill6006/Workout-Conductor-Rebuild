@@ -28,7 +28,7 @@ Phase 9 was not started. This release keeps the existing Phase 8 safety boundary
 
 ## Verification
 
-- 145/145 unit and integration tests
+- 146/146 unit and integration tests
 - 20/20 Android Chromium production-build scenarios
 - TypeScript production build, lint, formatting, privacy scan, and built-asset/PWA verification
 - exact restore/read-back/rollback, malformed and tampered import rejection, legacy migration, and true offline app-shell reload

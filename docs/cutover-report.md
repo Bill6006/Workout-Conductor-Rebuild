@@ -34,7 +34,7 @@ No backend, authentication, telemetry, remote media dependency, or real user rec
 
 ## Verification
 
-The local release matrix passed: 145/145 unit and integration tests, 20/20 Android Chromium scenarios, lint, TypeScript, formatting, privacy scanning, production build, and built-asset/PWA verification. Browser coverage includes exact restore and rollback, malformed/tampered restore rejection, migration, true offline reload, semantic and keyboard operation, touch targets, responsive widths, rapid activation, durable skip/return, explicit finish consent, and reduced motion. The deployed commit is recorded in [PROJECT_STATUS.md](../PROJECT_STATUS.md). The acceptance contracts are documented in [data-safety.md](data-safety.md) and [pwa-and-accessibility.md](pwa-and-accessibility.md).
+The local release matrix passed: 146/146 unit and integration tests, 20/20 Android Chromium scenarios, lint, TypeScript, formatting, privacy scanning, production build, and built-asset/PWA verification. Browser coverage includes exact restore and rollback, malformed/tampered restore rejection, migration, true offline reload, semantic and keyboard operation, touch targets, responsive widths, rapid activation, durable skip/return, explicit finish consent, and reduced motion. The deployed commit is recorded in [PROJECT_STATUS.md](../PROJECT_STATUS.md). The acceptance contracts are documented in [data-safety.md](data-safety.md) and [pwa-and-accessibility.md](pwa-and-accessibility.md).
 
 ## Android review
 

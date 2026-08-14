@@ -330,6 +330,35 @@ describe('Phase 5 durable active workout session', () => {
     expect(returned.records).toEqual(session.records);
   });
 
+  it('defers and returns one circuit move across persistence without losing its partner record', () => {
+    const workout = generated();
+    const grouped = workout.blocks.find(
+      (block) => block.kind === 'superset' || block.kind === 'circuit',
+    )!;
+    const circuit = { ...grouped, kind: 'circuit' as const };
+    let session = createActiveSession(
+      { ...workout, blocks: [circuit] },
+      startedAt,
+    );
+    const deferredMove = nextSetSlot(session)!;
+    session = deferCurrentExercise(session, '2026-08-10T18:01:00.000Z');
+    const partner = nextSetSlot(session)!;
+    expect(partner.blockId).toBe(deferredMove.blockId);
+    expect(partner.prescriptionId).not.toBe(deferredMove.prescriptionId);
+    session = logSet(session, partner, { weight: 25, reps: 10, rir: 2 });
+
+    const reloaded = ActiveSessionSchema.parse(structuredClone(session));
+    const returned = returnToExercise(
+      reloaded,
+      deferredMove.prescriptionId,
+      '2026-08-10T18:02:00.000Z',
+    );
+    expect(nextSetSlot(returned)?.prescriptionId).toBe(
+      deferredMove.prescriptionId,
+    );
+    expect(returned.records).toEqual(session.records);
+  });
+
   it('requires confirmation, records intentional omissions, and is idempotent under rapid deferral', () => {
     const session = createActiveSession(generated(), startedAt);
     const first = nextSetSlot(session)!;
