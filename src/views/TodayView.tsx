@@ -305,7 +305,7 @@ export function TodayView({
         <span className="status-pill">
           <span /> Phase 8 UX enhancement
         </span>
-        <span className="build-label">WC-P8UXR2-0814</span>
+        <span className="build-label">WC-P8UXR3-0814</span>
       </div>
 
       <section className="today-hero" aria-labelledby="today-workout-title">

@@ -86,11 +86,11 @@ function WorkoutNavigator({
 }: {
   canAct: boolean;
   busy: boolean;
-  onCurrent: () => void;
-  onQueue: () => void;
-  onNote: () => void;
-  onPlateMath: () => void;
-  onSkip: () => void;
+  onCurrent: (opener: HTMLButtonElement) => void;
+  onQueue: (opener: HTMLButtonElement) => void;
+  onNote: (opener: HTMLButtonElement) => void;
+  onPlateMath: (opener: HTMLButtonElement) => void;
+  onSkip: (opener: HTMLButtonElement) => void;
 }) {
   const actions = [
     {
@@ -126,7 +126,7 @@ function WorkoutNavigator({
           key={item.label}
           type="button"
           disabled={item.disabled}
-          onClick={item.action}
+          onClick={(event) => item.action(event.currentTarget)}
           aria-label={item.label}
         >
           <Icon name={item.icon} size={18} />
@@ -141,10 +141,12 @@ function ExerciseQueueSheet({
   items,
   onReturn,
   onClose,
+  returnFocusTo,
 }: {
   items: WorkoutExerciseQueueItem[];
   onReturn: (prescriptionId: string) => void;
   onClose: () => void;
+  returnFocusTo: HTMLElement | null;
 }) {
   const closeRef = useRef<HTMLButtonElement>(null);
   const onCloseRef = useRef(onClose);
@@ -157,10 +159,18 @@ function ExerciseQueueSheet({
       if (event.key === 'Escape') onCloseRef.current();
     };
     window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, []);
+    return () => {
+      window.removeEventListener('keydown', handleKey);
+      restoreDialogFocus(returnFocusTo);
+    };
+  }, [returnFocusTo]);
   return (
-    <div className="sheet-backdrop">
+    <div
+      className="sheet-backdrop"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
       <section
         className="native-sheet workout-queue-sheet"
         role="dialog"
@@ -209,11 +219,13 @@ function WorkoutUtilitySheet({
   title,
   eyebrow,
   onClose,
+  returnFocusTo,
   children,
 }: {
   title: string;
   eyebrow: string;
   onClose: () => void;
+  returnFocusTo: HTMLElement | null;
   children: ReactNode;
 }) {
   const sheetRef = useRef<HTMLElement>(null);
@@ -228,10 +240,18 @@ function WorkoutUtilitySheet({
       if (event.key === 'Escape') onCloseRef.current();
     };
     window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, []);
+    return () => {
+      window.removeEventListener('keydown', handleKey);
+      restoreDialogFocus(returnFocusTo);
+    };
+  }, [returnFocusTo]);
   return (
-    <div className="sheet-backdrop">
+    <div
+      className="sheet-backdrop"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
       <section
         ref={sheetRef}
         className="native-sheet workout-utility-sheet"
@@ -253,6 +273,19 @@ function WorkoutUtilitySheet({
       </section>
     </div>
   );
+}
+
+function restoreDialogFocus(opener: HTMLElement | null) {
+  window.setTimeout(() => {
+    if (opener?.isConnected && !opener.matches(':disabled')) {
+      opener.focus();
+      return;
+    }
+    const fallback = document.querySelector<HTMLElement>(
+      '.workout-navigator button:not(:disabled), .active-workout-header button:not(:disabled), main button:not(:disabled)',
+    );
+    fallback?.focus();
+  });
 }
 
 function CompletionCelebration() {
@@ -341,6 +374,11 @@ export function ActiveWorkoutView({
   const [showFinishWarning, setShowFinishWarning] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [showAlternatives, setShowAlternatives] = useState(false);
+  const [queueOpener, setQueueOpener] = useState<HTMLElement | null>(null);
+  const [noteOpener, setNoteOpener] = useState<HTMLElement | null>(null);
+  const [plateMathOpener, setPlateMathOpener] = useState<HTMLElement | null>(
+    null,
+  );
   const [showWhy, setShowWhy] = useState(false);
   const [noteDraft, setNoteDraft] = useState('');
   const [plateWeight, setPlateWeight] = useState(40);
@@ -353,6 +391,13 @@ export function ActiveWorkoutView({
   const finishLock = useRef(false);
   const currentExerciseRef = useRef<HTMLElement>(null);
   const finishWarningPrimaryRef = useRef<HTMLButtonElement>(null);
+  const setOptionsCloseRef = useRef<HTMLButtonElement>(null);
+  const alternativesCloseRef = useRef<HTMLButtonElement>(null);
+  const pauseResumeRef = useRef<HTMLButtonElement>(null);
+  const setOptionsOpenerRef = useRef<HTMLElement | null>(null);
+  const alternativesOpenerRef = useRef<HTMLElement | null>(null);
+  const finishWarningOpenerRef = useRef<HTMLElement | null>(null);
+  const pauseOpenerRef = useRef<HTMLElement | null>(null);
   const [pendingCoachAction, setPendingCoachAction] =
     useState<CoachAction | null>(null);
   const [feedbackDifficulty, setFeedbackDifficulty] = useState<
@@ -412,13 +457,113 @@ export function ActiveWorkoutView({
 
   useEffect(() => {
     if (!showFinishWarning) return;
+    const returnFocusTo = finishWarningOpenerRef.current;
     finishWarningPrimaryRef.current?.focus();
     const handleKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setShowFinishWarning(false);
     };
     window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
+    return () => {
+      window.removeEventListener('keydown', handleKey);
+      restoreDialogFocus(returnFocusTo);
+    };
   }, [showFinishWarning]);
+
+  useEffect(() => {
+    if (!showOptions) return;
+    const returnFocusTo = setOptionsOpenerRef.current;
+    setOptionsCloseRef.current?.focus();
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowOptions(false);
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => {
+      window.removeEventListener('keydown', handleKey);
+      restoreDialogFocus(returnFocusTo);
+    };
+  }, [showOptions]);
+
+  useEffect(() => {
+    if (!showAlternatives) return;
+    const returnFocusTo = alternativesOpenerRef.current;
+    alternativesCloseRef.current?.focus();
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowAlternatives(false);
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => {
+      window.removeEventListener('keydown', handleKey);
+      restoreDialogFocus(returnFocusTo);
+    };
+  }, [showAlternatives]);
+
+  useEffect(() => {
+    if (session.status !== 'paused') return;
+    const returnFocusTo = pauseOpenerRef.current;
+    pauseResumeRef.current?.focus();
+    return () => restoreDialogFocus(returnFocusTo);
+  }, [session.status]);
+
+  function rememberOpener(
+    target: { current: HTMLElement | null },
+    opener?: HTMLElement,
+  ) {
+    target.current =
+      opener ??
+      (document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null);
+  }
+
+  function openQueue(opener?: HTMLElement) {
+    setQueueOpener(
+      opener ??
+        (document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null),
+    );
+    setShowQueue(true);
+  }
+
+  function openNote(opener?: HTMLElement) {
+    setNoteOpener(
+      opener ??
+        (document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null),
+    );
+    setShowNote(true);
+  }
+
+  function openPlateMath(opener?: HTMLElement) {
+    setPlateMathOpener(
+      opener ??
+        (document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null),
+    );
+    setShowPlateMath(true);
+  }
+
+  function openSetOptions(opener?: HTMLElement) {
+    rememberOpener(setOptionsOpenerRef, opener);
+    setShowOptions(true);
+  }
+
+  function openAlternatives(opener?: HTMLElement) {
+    rememberOpener(alternativesOpenerRef, opener);
+    setShowAlternatives(true);
+  }
+
+  function openFinishWarning(opener?: HTMLElement) {
+    rememberOpener(finishWarningOpenerRef, opener);
+    setShowFinishWarning(true);
+  }
+
+  function pauseWorkout(opener?: HTMLElement) {
+    rememberOpener(pauseOpenerRef, opener);
+    void changeSession(pauseSession(session), 'Workout paused.');
+  }
 
   const currentExerciseId = move?.exerciseId;
   const currentSessionNote = currentExerciseId
@@ -800,9 +945,9 @@ export function ActiveWorkoutView({
     setShowAlternatives(false);
   }
 
-  function requestCoachAction(action: CoachAction) {
+  function requestCoachAction(action: CoachAction, opener?: HTMLElement) {
     if (action.kind === 'open-alternatives') {
-      setShowAlternatives(true);
+      openAlternatives(opener);
       return;
     }
     setPendingCoachAction(action);
@@ -1083,9 +1228,7 @@ export function ActiveWorkoutView({
           <button
             type="button"
             className="pause-button"
-            onClick={() =>
-              changeSession(pauseSession(session), 'Workout paused.')
-            }
+            onClick={(event) => pauseWorkout(event.currentTarget)}
           >
             Pause
           </button>
@@ -1094,13 +1237,13 @@ export function ActiveWorkoutView({
           <span className="status-pill">
             <span /> Phase 8 UX enhancement
           </span>
-          <span className="build-label">WC-P8UXR2-0814</span>
+          <span className="build-label">WC-P8UXR3-0814</span>
         </div>
         <WorkoutNavigator
           canAct={false}
           busy={navigationPending}
           onCurrent={() => undefined}
-          onQueue={() => setShowQueue(true)}
+          onQueue={(opener) => openQueue(opener)}
           onNote={() => undefined}
           onPlateMath={() => undefined}
           onSkip={() => undefined}
@@ -1126,16 +1269,19 @@ export function ActiveWorkoutView({
           <button
             className="primary-button"
             type="button"
-            onClick={() =>
+            onClick={(event) =>
               unfinished.length > 0
-                ? setShowFinishWarning(true)
+                ? openFinishWarning(event.currentTarget)
                 : void handleFinish(false)
             }
           >
             Finish workout
           </button>
           {unfinished.length > 0 && (
-            <button type="button" onClick={() => setShowQueue(true)}>
+            <button
+              type="button"
+              onClick={(event) => openQueue(event.currentTarget)}
+            >
               Review exercise queue
             </button>
           )}
@@ -1145,10 +1291,17 @@ export function ActiveWorkoutView({
             items={queue}
             onReturn={(id) => void handleReturnToExercise(id)}
             onClose={() => setShowQueue(false)}
+            returnFocusTo={queueOpener}
           />
         )}
         {showFinishWarning && (
-          <div className="sheet-backdrop">
+          <div
+            className="sheet-backdrop"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget)
+                setShowFinishWarning(false);
+            }}
+          >
             <section
               className="native-sheet finish-warning-sheet"
               role="alertdialog"
@@ -1203,6 +1356,7 @@ export function ActiveWorkoutView({
               <p className="eyebrow">Workout paused</p>
               <h2 id="pause-workout-title">Your place is saved.</h2>
               <button
+                ref={pauseResumeRef}
                 type="button"
                 onClick={() =>
                   changeSession(resumeSession(session), 'Workout resumed.')
@@ -1227,9 +1381,7 @@ export function ActiveWorkoutView({
         <button
           type="button"
           className="pause-button"
-          onClick={() =>
-            changeSession(pauseSession(session), 'Workout paused.')
-          }
+          onClick={(event) => pauseWorkout(event.currentTarget)}
         >
           Pause
         </button>
@@ -1239,16 +1391,16 @@ export function ActiveWorkoutView({
         <span className="status-pill">
           <span /> Phase 8 UX enhancement
         </span>
-        <span className="build-label">WC-P8UXR2-0814</span>
+        <span className="build-label">WC-P8UXR3-0814</span>
       </div>
 
       <WorkoutNavigator
         canAct={session.status === 'active'}
         busy={navigationPending}
         onCurrent={() => scrollTo(currentExerciseRef)}
-        onQueue={() => setShowQueue(true)}
-        onNote={() => setShowNote(true)}
-        onPlateMath={() => setShowPlateMath(true)}
+        onQueue={(opener) => openQueue(opener)}
+        onNote={(opener) => openNote(opener)}
+        onPlateMath={(opener) => openPlateMath(opener)}
         onSkip={() => void handleSkipForNow()}
       />
 
@@ -1292,7 +1444,9 @@ export function ActiveWorkoutView({
         {coach.action && !pendingCoachAction && (
           <button
             type="button"
-            onClick={() => requestCoachAction(coach.action!)}
+            onClick={(event) =>
+              requestCoachAction(coach.action!, event.currentTarget)
+            }
           >
             {coach.action.label}
           </button>
@@ -1347,9 +1501,11 @@ export function ActiveWorkoutView({
       >
         <div className="active-exercise-card__topline">
           <span>
-            {block.kind === 'superset'
-              ? `Superset · round ${(slot.roundIndex ?? slot.setIndex) + 1} of ${block.rounds}`
-              : `${slot.kind === 'warmup' ? 'Warm-up' : slot.kind === 'drop' ? 'Drop set' : 'Working set'} ${slot.setIndex + 1} of ${move.sets}`}
+            {slot.kind === 'drop'
+              ? `Final drop set · Move ${String.fromCharCode(65 + slot.moveIndex)}`
+              : block.kind === 'superset'
+                ? `Superset · round ${(slot.roundIndex ?? slot.setIndex) + 1} of ${block.rounds}`
+                : `${slot.kind === 'warmup' ? 'Warm-up' : 'Working set'} ${slot.setIndex + 1} of ${move.sets}`}
           </span>
           <span>
             {slot.kind === 'drop'
@@ -1459,7 +1615,10 @@ export function ActiveWorkoutView({
         />
 
         <div className="active-exercise-actions">
-          <button type="button" onClick={() => setShowOptions(true)}>
+          <button
+            type="button"
+            onClick={(event) => openSetOptions(event.currentTarget)}
+          >
             Set options
           </button>
           <button type="button" onClick={() => setShowWhy(!showWhy)}>
@@ -1468,7 +1627,7 @@ export function ActiveWorkoutView({
           <button
             type="button"
             disabled={hasWorkingRecordForMove && !painSignalForMove}
-            onClick={() => setShowAlternatives(true)}
+            onClick={(event) => openAlternatives(event.currentTarget)}
           >
             Alternatives
           </button>
@@ -1528,9 +1687,11 @@ export function ActiveWorkoutView({
                     <strong>
                       {record.kind === 'warmup'
                         ? `Warm-up ${record.setIndex + 1}`
-                        : block.kind === 'superset'
-                          ? `Round ${(record.roundIndex ?? record.setIndex) + 1}${record.moveIndex === 0 ? 'A' : 'B'}`
-                          : `Set ${record.setIndex + 1}`}
+                        : record.kind === 'drop'
+                          ? `Final drop set ${String.fromCharCode(65 + record.moveIndex)}`
+                          : block.kind === 'superset'
+                            ? `Round ${(record.roundIndex ?? record.setIndex) + 1}${record.moveIndex === 0 ? 'A' : 'B'}`
+                            : `Set ${record.setIndex + 1}`}
                     </strong>
                     <span>{record.exerciseName}</span>
                   </div>
@@ -1591,6 +1752,7 @@ export function ActiveWorkoutView({
               locally.
             </p>
             <button
+              ref={pauseResumeRef}
               type="button"
               onClick={() =>
                 changeSession(resumeSession(session), 'Workout resumed.')
@@ -1603,7 +1765,12 @@ export function ActiveWorkoutView({
       )}
 
       {showOptions && (
-        <div className="sheet-backdrop">
+        <div
+          className="sheet-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setShowOptions(false);
+          }}
+        >
           <section
             className="native-sheet set-options-sheet"
             role="dialog"
@@ -1616,7 +1783,11 @@ export function ActiveWorkoutView({
                 <p className="eyebrow">Current block</p>
                 <h2 id="set-options-title">Set options</h2>
               </div>
-              <button type="button" onClick={() => setShowOptions(false)}>
+              <button
+                ref={setOptionsCloseRef}
+                type="button"
+                onClick={() => setShowOptions(false)}
+              >
                 Done
               </button>
             </div>
@@ -1639,8 +1810,8 @@ export function ActiveWorkoutView({
             </button>
             <button
               type="button"
-              onClick={() => {
-                changeSession(pauseSession(session), 'Workout paused.');
+              onClick={(event) => {
+                pauseWorkout(event.currentTarget);
                 setShowOptions(false);
               }}
             >
@@ -1658,6 +1829,7 @@ export function ActiveWorkoutView({
           items={queue}
           onReturn={(id) => void handleReturnToExercise(id)}
           onClose={() => setShowQueue(false)}
+          returnFocusTo={queueOpener}
         />
       )}
 
@@ -1666,6 +1838,7 @@ export function ActiveWorkoutView({
           eyebrow="Current exercise"
           title="Exercise note"
           onClose={() => setShowNote(false)}
+          returnFocusTo={noteOpener}
         >
           <label>
             <span>Grip, seat height, setup, or form cue</span>
@@ -1691,6 +1864,7 @@ export function ActiveWorkoutView({
           eyebrow="Loading helper"
           title="Plate Math"
           onClose={() => setShowPlateMath(false)}
+          returnFocusTo={plateMathOpener}
         >
           <label>
             <span>Target weight</span>
@@ -1721,7 +1895,13 @@ export function ActiveWorkoutView({
       )}
 
       {showAlternatives && (
-        <div className="sheet-backdrop">
+        <div
+          className="sheet-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget)
+              setShowAlternatives(false);
+          }}
+        >
           <section
             className="native-sheet alternatives-sheet"
             role="dialog"
@@ -1734,7 +1914,11 @@ export function ActiveWorkoutView({
                 <p className="eyebrow">One-slot replacement</p>
                 <h2 id="alternatives-title">Alternatives</h2>
               </div>
-              <button type="button" onClick={() => setShowAlternatives(false)}>
+              <button
+                ref={alternativesCloseRef}
+                type="button"
+                onClick={() => setShowAlternatives(false)}
+              >
                 Close
               </button>
             </div>

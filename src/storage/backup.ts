@@ -24,6 +24,7 @@ import {
 } from './database';
 import { SETTINGS_STORAGE_KEY } from './settings';
 import { CoachTargetImportSchema, CustomMediaBlobSchema } from './userContent';
+import { LegacyUserProfileSchema } from './legacyProfile';
 
 const RawStoreRecordSchema = z.looseObject({
   key: z.union([z.string(), z.number()]),
@@ -58,7 +59,7 @@ type RestorePoint = {
 };
 
 const recordSchemas: Partial<Record<StoreName, z.ZodType>> = {
-  [storeNames.profiles]: ProfileSchema,
+  [storeNames.profiles]: z.union([ProfileSchema, LegacyUserProfileSchema]),
   [storeNames.equipmentProfiles]: EquipmentProfileSchema,
   [storeNames.locations]: LocationProfileSchema,
   [storeNames.activeSessions]: ActiveSessionImportSchema,

@@ -5,6 +5,7 @@ import {
   generateWorkout,
   generationInputFromBundle,
 } from '../../engine/workoutGenerator/generateWorkout';
+import { generatedWorkoutSchema } from '../../engine/workoutGenerator/schema';
 import { calculatePlateMath } from './plateMath';
 import { ActiveSessionSchema } from './schema';
 import {
@@ -36,6 +37,38 @@ function generated() {
       date: startedAt,
     }),
   );
+}
+
+function dropSetCircuit() {
+  const workout = generated();
+  const moves = workout.blocks
+    .flatMap(blockMoves)
+    .slice(0, 3)
+    .map((move, index) => ({
+      ...move,
+      prescriptionId: `drop-circuit-move-${index + 1}`,
+      sets: 3,
+      warmupSets: [],
+      dropSet: {
+        reps: '8–12',
+        loadReductionPercent: 25,
+        rationale: 'Final intensity work after every circuit round.',
+      },
+    }));
+  return generatedWorkoutSchema.parse({
+    ...workout,
+    id: 'drop-circuit-order-regression',
+    blocks: [
+      {
+        kind: 'circuit',
+        blockId: 'drop-circuit',
+        canonicalRow: moves.map((move) => move.exerciseName).join(' + '),
+        moves,
+        rounds: 3,
+        restAfterRoundSeconds: 60,
+      },
+    ],
+  });
 }
 
 function logged(session = createActiveSession(generated(), startedAt)) {
@@ -151,6 +184,85 @@ describe('Phase 5 durable active workout session', () => {
 
     const reloaded = ActiveSessionSchema.parse(structuredClone(current));
     expect(nextSetSlot(reloaded)).toEqual(partner);
+  });
+
+  it('schedules first, middle, and final circuit drop sets only after every round and survives reload plus pause', () => {
+    let current = createActiveSession(dropSetCircuit(), startedAt);
+    const sequence: Array<{
+      kind: string;
+      roundIndex: number | null;
+      moveIndex: number;
+    }> = [];
+
+    while (nextSetSlot(current)) {
+      const slot = nextSetSlot(current)!;
+      sequence.push({
+        kind: slot.kind,
+        roundIndex: slot.roundIndex,
+        moveIndex: slot.moveIndex,
+      });
+      current = skipCurrentSet(current, startedAt);
+      current = ActiveSessionSchema.parse(structuredClone(current));
+      if (sequence.length === 4) {
+        current = resumeSession(
+          ActiveSessionSchema.parse(
+            structuredClone(pauseSession(current, startedAt)),
+          ),
+          startedAt,
+        );
+      }
+    }
+
+    expect(sequence.slice(0, 9)).toEqual(
+      [0, 1, 2].flatMap((roundIndex) =>
+        [0, 1, 2].map((moveIndex) => ({
+          kind: 'working',
+          roundIndex,
+          moveIndex,
+        })),
+      ),
+    );
+    expect(sequence.slice(9)).toEqual(
+      [0, 1, 2].map((moveIndex) => ({
+        kind: 'drop',
+        roundIndex: null,
+        moveIndex,
+      })),
+    );
+  });
+
+  it('does not leak a deferred move drop set into another circuit round', () => {
+    let current = deferCurrentExercise(
+      createActiveSession(dropSetCircuit(), startedAt),
+      startedAt,
+    );
+    const deferredId = current.deferredPrescriptionIds[0];
+    const whileDeferred: string[] = [];
+
+    while (nextSetSlot(current)) {
+      const slot = nextSetSlot(current)!;
+      whileDeferred.push(`${slot.kind}:${slot.moveIndex}`);
+      current = skipCurrentSet(current, startedAt);
+    }
+
+    expect(whileDeferred).not.toContain('drop:0');
+    current = returnToExercise(
+      ActiveSessionSchema.parse(structuredClone(current)),
+      deferredId,
+      startedAt,
+    );
+    const returned: string[] = [];
+    while (nextSetSlot(current)) {
+      const slot = nextSetSlot(current)!;
+      returned.push(`${slot.kind}:${slot.roundIndex ?? 'final'}`);
+      current = skipCurrentSet(current, startedAt);
+    }
+    expect(returned).toEqual([
+      'working:0',
+      'working:1',
+      'working:2',
+      'drop:final',
+    ]);
   });
 
   it('logs a normal prefilled set well inside the 100 ms response target', () => {

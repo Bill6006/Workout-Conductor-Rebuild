@@ -72,6 +72,7 @@ export default function App() {
   const [storageStatus, setStorageStatus] = useState(
     'Opening durable local storage…',
   );
+  const [storageError, setStorageError] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState('');
   const [activeSession, setActiveSession] = useState<ActiveSession | null>(
     null,
@@ -94,6 +95,7 @@ export default function App() {
         setActiveSession(storedSession);
         setSessionHistory(storedHistory);
         setSavedWorkouts(storedSaved);
+        setStorageError(null);
         setShowOnboarding(!storedBundle.profile?.onboardingComplete);
         setStorageStatus(
           storedSession
@@ -103,12 +105,13 @@ export default function App() {
       })
       .catch((error: unknown) => {
         if (!active) return;
-        setShowOnboarding(true);
-        setStorageStatus(
+        const detail =
           error instanceof Error
             ? error.message
-            : 'Local storage could not be opened.',
-        );
+            : 'Local storage could not be opened.';
+        setShowOnboarding(false);
+        setStorageError(detail);
+        setStorageStatus(detail);
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -287,8 +290,29 @@ export default function App() {
         </div>
         <span className="loading-pulse" />
         <p>Opening your private training space…</p>
-        <small>WC-P8UXR2-0814</small>
+        <small>WC-P8UXR3-0814</small>
       </div>
+    );
+  }
+
+  if (storageError) {
+    return (
+      <main className="storage-recovery-screen" id="main-content">
+        <div className="brand-mark">
+          <Icon name="settings" size={30} />
+        </div>
+        <p className="eyebrow">Protected data needs attention</p>
+        <h1>Your local records were left unchanged.</h1>
+        <p role="alert">{storageError}</p>
+        <p>
+          Do not clear site data. Reopen the earlier app to export a backup, or
+          restore a previously verified Workout Conductor backup.
+        </p>
+        <button type="button" onClick={() => window.location.reload()}>
+          Retry protected storage
+        </button>
+        <small>WC-P8UXR3-0814</small>
+      </main>
     );
   }
 

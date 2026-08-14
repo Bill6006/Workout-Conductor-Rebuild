@@ -9,7 +9,12 @@ import {
   type Profile,
 } from '../domain/models';
 import { createEmptyBundle } from '../domain/defaults';
-import { loadSettings } from './settings';
+import { loadSettings, saveSettingsVerified } from './settings';
+import {
+  LegacyUserProfileSchema,
+  migrateLegacyUserProfile,
+  type LegacyUserProfile,
+} from './legacyProfile';
 import {
   ActiveSessionSchema,
   ExerciseNoteSchema,
@@ -322,14 +327,55 @@ export async function saveBundleVerified(
 
 export async function loadBundle(): Promise<AppBundle> {
   const empty = createEmptyBundle();
-  const [profiles, equipmentProfiles, locations] = await Promise.all([
-    getAllRecords<Profile>(storeNames.profiles, ProfileSchema),
-    getAllRecords<EquipmentProfile>(
-      storeNames.equipmentProfiles,
-      EquipmentProfileSchema,
-    ),
-    getAllRecords<LocationProfile>(storeNames.locations, LocationProfileSchema),
+  const snapshot = await readRawStores([
+    storeNames.profiles,
+    storeNames.equipmentProfiles,
+    storeNames.locations,
   ]);
+  const profiles: Profile[] = [];
+  const legacyProfiles: LegacyUserProfile[] = [];
+  for (const record of snapshot[storeNames.profiles] ?? []) {
+    const current = ProfileSchema.safeParse(record.value);
+    if (current.success) {
+      profiles.push(current.data);
+      continue;
+    }
+    const legacy = LegacyUserProfileSchema.safeParse(record.value);
+    if (legacy.success) {
+      legacyProfiles.push(legacy.data);
+      continue;
+    }
+    throw new Error(
+      `A protected profile at key ${String(record.key)} uses an unsupported schema. Your local data was kept unchanged; export it from the earlier app or restore a verified backup.`,
+    );
+  }
+
+  const parseCurrentStore = <T>(name: StoreName, schema: z.ZodType<T>): T[] =>
+    (snapshot[name] ?? []).map((record) => {
+      const parsed = schema.safeParse(record.value);
+      if (!parsed.success) {
+        throw new Error(
+          `A protected ${name} record at key ${String(record.key)} uses an unsupported schema. Your local data was kept unchanged.`,
+        );
+      }
+      return parsed.data;
+    });
+
+  const equipmentProfiles = parseCurrentStore<EquipmentProfile>(
+    storeNames.equipmentProfiles,
+    EquipmentProfileSchema,
+  );
+  const locations = parseCurrentStore<LocationProfile>(
+    storeNames.locations,
+    LocationProfileSchema,
+  );
+
+  if (profiles.length === 0 && legacyProfiles.length > 0) {
+    const migrated = migrateLegacyUserProfile(legacyProfiles.at(-1)!);
+    const settings = saveSettingsVerified(migrated.settings);
+    const verified = await saveBundleVerified({ ...migrated, settings });
+    return { ...verified, settings };
+  }
 
   return {
     profile:

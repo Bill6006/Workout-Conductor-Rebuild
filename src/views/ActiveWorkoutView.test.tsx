@@ -165,13 +165,55 @@ describe('Phase 8 active-workout navigation enhancement', () => {
     );
   });
 
-  it('closes the keyboard-accessible queue with Escape', () => {
+  it('restores each workout dialog launcher after Escape, Close, and backdrop dismissal', async () => {
     render(<Harness initial={session()} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }));
+    const queueLauncher = screen.getByRole('button', { name: 'Queue' });
+    fireEvent.click(queueLauncher);
     expect(screen.getByRole('button', { name: 'Close' })).toHaveFocus();
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(
       screen.queryByRole('dialog', { name: 'Exercise queue' }),
     ).not.toBeInTheDocument();
+    await waitFor(() => expect(queueLauncher).toHaveFocus());
+
+    const noteLauncher = screen.getByRole('button', { name: 'Note' });
+    fireEvent.click(noteLauncher);
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(noteLauncher).toHaveFocus());
+
+    const platesLauncher = screen.getByRole('button', { name: 'Plates' });
+    fireEvent.click(platesLauncher);
+    const platesDialog = screen.getByRole('dialog', { name: 'Plate Math' });
+    fireEvent.mouseDown(platesDialog.parentElement!);
+    await waitFor(() => expect(platesLauncher).toHaveFocus());
+
+    const optionsLauncher = screen.getByRole('button', {
+      name: 'Set options',
+    });
+    fireEvent.click(optionsLauncher);
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await waitFor(() => expect(optionsLauncher).toHaveFocus());
+
+    const alternativesLauncher = screen.getByRole('button', {
+      name: 'Alternatives',
+    });
+    fireEvent.click(alternativesLauncher);
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(alternativesLauncher).toHaveFocus());
+  });
+
+  it('returns finish-consent focus to the exact Finish workout launcher', async () => {
+    render(<Harness initial={fullyDeferred()} />);
+    const finishLauncher = screen.getByRole('button', {
+      name: 'Finish workout',
+    });
+    fireEvent.click(finishLauncher);
+    expect(
+      screen.getByRole('alertdialog', {
+        name: 'Finish without these exercises?',
+      }),
+    ).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await waitFor(() => expect(finishLauncher).toHaveFocus());
   });
 });

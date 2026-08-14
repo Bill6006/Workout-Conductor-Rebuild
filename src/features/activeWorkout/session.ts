@@ -122,6 +122,7 @@ function moveSlot(
   moveIndex: number,
   workingSetCount: number,
   roundIndex: number | null,
+  includeDropSet = true,
 ): SetSlot | null {
   const warmupChoice = session.warmupSelections[move.prescriptionId];
   if (warmupChoice === 'added') {
@@ -176,6 +177,7 @@ function moveSlot(
   }
 
   if (
+    includeDropSet &&
     move.dropSet &&
     recordsFor(session, move.prescriptionId, 'drop').length === 0
   ) {
@@ -241,6 +243,7 @@ function nextSlotInBlock(
         moveIndex,
         block.rounds,
         round,
+        false,
       );
       if (warmupSlot) return warmupSlot;
     }

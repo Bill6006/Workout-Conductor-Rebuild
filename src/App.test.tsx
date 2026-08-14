@@ -7,7 +7,95 @@ import {
 } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import App from './App';
+import { createDemoBundle } from './domain/defaults';
+import {
+  generateWorkout,
+  generationInputFromBundle,
+} from './engine/workoutGenerator/generateWorkout';
+import {
+  createActiveSession,
+  nextSetSlot,
+} from './features/activeWorkout/session';
 import { PWA_UPDATE_READY_EVENT } from './pwaEvents';
+import {
+  DATABASE_NAME,
+  readRawStores,
+  saveActiveSessionVerified,
+  storeNames,
+} from './storage/database';
+
+function originalProfile(overrides: Record<string, unknown> = {}) {
+  return {
+    schemaVersion: 1,
+    id: 'primary',
+    createdAt: '2026-08-01T12:00:00.000Z',
+    updatedAt: '2026-08-14T12:00:00.000Z',
+    onboardingComplete: true,
+    primaryGoal: 'build-muscle',
+    secondaryGoal: 'bigger-arms',
+    experience: 'intermediate',
+    weeklyFrequency: 4,
+    typicalDuration: 60,
+    availableDays: ['mon', 'tue', 'thu', 'sat'],
+    gymAccess: 'home-gym',
+    equipmentProfiles: [
+      {
+        id: 'original-equipment',
+        name: 'Original setup',
+        equipment: ['Dumbbells', 'Bench'],
+        unavailableExercises: [],
+      },
+    ],
+    savedLocations: [
+      {
+        id: 'original-location',
+        name: 'Original home gym',
+        type: 'home-gym',
+        equipmentProfileId: 'original-equipment',
+      },
+    ],
+    activeLocationId: 'original-location',
+    preferences: {
+      preferredExerciseIds: [],
+      dislikedExerciseIds: [],
+      painLimitations: [],
+      movementLimitations: [],
+      shoulderLimitations: false,
+      avoidBarbellSquats: false,
+      trainingStyle: 'hybrid',
+      allowSupersets: true,
+      allowDropSets: false,
+      allowCircuits: false,
+      restStyle: 'guided',
+      units: 'lb',
+    },
+    retainedOriginalField: 'keep-me',
+    ...overrides,
+  };
+}
+
+async function seedOriginalProfile(value: unknown) {
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.open(DATABASE_NAME, 1);
+    request.onupgradeneeded = () => {
+      request.result.createObjectStore('profiles');
+      request.result.createObjectStore('workoutHistory');
+      request.result.createObjectStore('backups');
+      request.result.createObjectStore('meta');
+    };
+    request.onsuccess = () => {
+      const database = request.result;
+      const transaction = database.transaction('profiles', 'readwrite');
+      transaction.objectStore('profiles').put(value, 'primary');
+      transaction.oncomplete = () => {
+        database.close();
+        resolve();
+      };
+      transaction.onerror = () => reject(transaction.error);
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
 
 async function openSyntheticDemo() {
   render(<App />);
@@ -28,6 +116,76 @@ async function startActiveWorkout() {
 }
 
 describe('Phase 8 final acceptance', () => {
+  it('migrates original same-origin data and resumes the active slot across an app-shell remount', async () => {
+    const original = originalProfile();
+    await seedOriginalProfile(original);
+    const demo = createDemoBundle();
+    const active = createActiveSession(
+      generateWorkout(
+        generationInputFromBundle(demo, '15', {
+          date: '2026-08-14T12:00:00.000Z',
+        }),
+      ),
+      '2026-08-14T12:00:00.000Z',
+    );
+    const activeExerciseName = nextSetSlot(active)!.exerciseName;
+    await saveActiveSessionVerified(active);
+
+    const firstRender = render(<App />);
+    expect(
+      await screen.findByRole('button', { name: 'Resume active workout' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('Your training, intelligently arranged.'),
+    ).not.toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Resume active workout' }),
+    );
+    const firstExercise = await screen.findByRole('heading', {
+      name: activeExerciseName,
+    });
+    expect(firstExercise).toBeInTheDocument();
+
+    firstRender.unmount();
+    render(<App />);
+    expect(
+      await screen.findByRole('button', { name: 'Resume active workout' }),
+    ).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Resume active workout' }),
+    );
+    expect(
+      await screen.findByRole('heading', { name: activeExerciseName }),
+    ).toBeInTheDocument();
+    expect(
+      (await readRawStores([storeNames.profiles])).profiles,
+    ).toContainEqual({ key: 'primary', value: original });
+  });
+
+  it('shows actionable recovery without onboarding or destructive cleanup for an unsupported protected profile', async () => {
+    const unsupported = originalProfile({ schemaVersion: 99 });
+    await seedOriginalProfile(unsupported);
+    render(<App />);
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Your local records were left unchanged.',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Protected data needs attention'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Your local records were left unchanged.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('Your training, intelligently arranged.'),
+    ).not.toBeInTheDocument();
+    expect((await readRawStores([storeNames.profiles])).profiles).toEqual([
+      { key: 'primary', value: unsupported },
+    ]);
+  });
+
   it('starts with the short private onboarding welcome', async () => {
     render(<App />);
 
@@ -46,7 +204,7 @@ describe('Phase 8 final acceptance', () => {
     await openSyntheticDemo();
 
     expect(screen.getByText('Phase 8 UX enhancement')).toBeInTheDocument();
-    expect(screen.getByText('WC-P8UXR2-0814')).toBeInTheDocument();
+    expect(screen.getByText('WC-P8UXR3-0814')).toBeInTheDocument();
     expect(screen.getByText('Adaptive Coach')).toBeInTheDocument();
     expect(screen.getByText('Generated locally')).toBeInTheDocument();
     const duration = screen.getByRole('combobox', { name: 'Workout length' });
@@ -230,7 +388,7 @@ describe('Phase 8 final acceptance', () => {
   it('starts a premium active workout and logs a one-tap prefilled set', async () => {
     await startActiveWorkout();
     expect(screen.getByText('Active workout')).toBeInTheDocument();
-    expect(screen.getByText('WC-P8UXR2-0814')).toBeInTheDocument();
+    expect(screen.getByText('WC-P8UXR3-0814')).toBeInTheDocument();
     expect(screen.getByRole('spinbutton', { name: 'Weight' })).toHaveValue(40);
     expect(screen.getByRole('spinbutton', { name: 'Reps' })).toHaveValue(8);
     expect(screen.getByRole('spinbutton', { name: 'RIR' })).toHaveValue(2);

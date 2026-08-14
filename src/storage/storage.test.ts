@@ -60,6 +60,82 @@ function legacyBackup() {
   });
 }
 
+function originalAppProfile() {
+  return {
+    schemaVersion: 1 as const,
+    id: 'primary' as const,
+    createdAt: '2026-08-01T12:00:00.000Z',
+    updatedAt: '2026-08-14T12:00:00.000Z',
+    onboardingComplete: true,
+    primaryGoal: 'get-stronger' as const,
+    secondaryGoal: 'stronger-legs' as const,
+    experience: 'advanced' as const,
+    weeklyFrequency: 5,
+    typicalDuration: 60 as const,
+    availableDays: ['mon', 'tue', 'thu', 'fri', 'sat'] as const,
+    gymAccess: 'both' as const,
+    equipmentProfiles: [
+      {
+        id: 'equipment-original',
+        name: 'Original garage setup',
+        equipment: ['Dumbbells', 'Bench', 'Resistance bands'],
+        unavailableExercises: ['barbell-back-squat'],
+        preservedEquipmentField: 'do-not-drop',
+      },
+    ],
+    savedLocations: [
+      {
+        id: 'location-original',
+        name: 'Original garage',
+        type: 'home-gym' as const,
+        equipmentProfileId: 'equipment-original',
+        preservedLocationField: 'do-not-drop',
+      },
+    ],
+    activeLocationId: 'location-original',
+    preferences: {
+      preferredExerciseIds: ['one-arm-dumbbell-row'],
+      dislikedExerciseIds: ['barbell-back-squat'],
+      painLimitations: ['left knee'],
+      movementLimitations: ['deep squat'],
+      shoulderLimitations: true,
+      avoidBarbellSquats: true,
+      trainingStyle: 'straight-sets' as const,
+      allowSupersets: false,
+      allowDropSets: true,
+      allowCircuits: false,
+      restStyle: 'manual' as const,
+      units: 'kg' as const,
+      bodyweight: 91,
+      preservedPreferenceField: 'do-not-drop',
+    },
+    preservedRootField: { source: 'original-app' },
+  };
+}
+
+async function seedOriginalAppProfile(value: unknown) {
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.open(DATABASE_NAME, 1);
+    request.onupgradeneeded = () => {
+      request.result.createObjectStore('profiles');
+      request.result.createObjectStore('workoutHistory');
+      request.result.createObjectStore('backups');
+      request.result.createObjectStore('meta');
+    };
+    request.onsuccess = () => {
+      const database = request.result;
+      const transaction = database.transaction('profiles', 'readwrite');
+      transaction.objectStore('profiles').put(value, 'primary');
+      transaction.oncomplete = () => {
+        database.close();
+        resolve();
+      };
+      transaction.onerror = () => reject(transaction.error);
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
 function customExercise() {
   return CustomExerciseSchema.parse({
     id: 'custom-supported-row',
@@ -93,6 +169,85 @@ function customExercise() {
 }
 
 describe('local-first storage and data safety', () => {
+  it('migrates the original same-origin profile without deletion and survives reload plus complete backup', async () => {
+    const original = originalAppProfile();
+    await seedOriginalAppProfile(original);
+
+    const migrated = await loadBundle();
+    expect(migrated).toMatchObject({
+      profile: {
+        id: 'primary-profile',
+        primaryGoal: 'Build Strength',
+        secondaryGoal: 'Strength Progress',
+        onboardingComplete: true,
+        bodyweight: 91,
+      },
+      settings: {
+        units: 'kg',
+        programmingStyle: 'Strength emphasis',
+        allowDropSets: true,
+      },
+    });
+    expect(migrated.equipmentProfiles[0]?.items).toEqual([
+      'Adjustable dumbbells',
+      'Adjustable bench',
+      'Resistance bands',
+    ]);
+
+    const workout = generateWorkout(
+      generationInputFromBundle(migrated, 'default', { date: '2026-08-14' }),
+    );
+    const active = pauseSession(
+      createActiveSession(workout, '2026-08-14T12:05:00.000Z'),
+      '2026-08-14T12:06:00.000Z',
+    );
+    await saveActiveSessionVerified(active);
+
+    const reloadedBundle = await loadBundle();
+    const reloadedSession = await loadActiveSession('kg');
+    expect(reloadedBundle.profile?.primaryGoal).toBe('Build Strength');
+    expect(reloadedSession).toMatchObject({
+      id: active.id,
+      status: 'paused',
+      currentBlockIndex: active.currentBlockIndex,
+    });
+
+    const raw = await readRawStores([storeNames.profiles]);
+    expect(raw.profiles).toHaveLength(2);
+    expect(raw.profiles).toContainEqual({ key: 'primary', value: original });
+
+    const backup = await createCompleteBackup();
+    expect(() => CompleteBackupSchema.parse(backup)).not.toThrow();
+    expect(previewBackup(JSON.stringify(backup))).toMatchObject({
+      kind: 'complete',
+      schemaVersion: 2,
+    });
+    await restoreBackup(JSON.stringify(backup));
+    expect((await loadBundle()).profile?.primaryGoal).toBe('Build Strength');
+    expect((await loadActiveSession('kg'))?.id).toBe(active.id);
+    const restoredRaw = await readRawStores([storeNames.profiles]);
+    expect(restoredRaw.profiles).toContainEqual({
+      key: 'primary',
+      value: original,
+    });
+  });
+
+  it('keeps unsupported original profile records untouched and raises recovery guidance', async () => {
+    const unsupported = {
+      ...originalAppProfile(),
+      schemaVersion: 77,
+      preservedRootField: { source: 'unsupported-original-app' },
+    };
+    await seedOriginalAppProfile(unsupported);
+
+    await expect(loadBundle()).rejects.toThrow(
+      'Your local data was kept unchanged',
+    );
+    expect((await readRawStores([storeNames.profiles])).profiles).toEqual([
+      { key: 'primary', value: unsupported },
+    ]);
+  });
+
   it('preserves and writes through legacy out-of-line-key stores', async () => {
     await new Promise<void>((resolve, reject) => {
       const request = indexedDB.open(DATABASE_NAME, 1);
