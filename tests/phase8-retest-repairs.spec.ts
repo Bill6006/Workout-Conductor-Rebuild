@@ -5,7 +5,7 @@ async function openDemo(page: Page) {
   await page
     .getByRole('button', { name: 'Explore with a synthetic demo profile' })
     .click();
-  await expect(page.getByText('WC-P8UX-0814')).toBeVisible();
+  await expect(page.getByText('WC-P8UXR1-0814')).toBeVisible();
 }
 
 async function rapidSetActivation(page: Page) {

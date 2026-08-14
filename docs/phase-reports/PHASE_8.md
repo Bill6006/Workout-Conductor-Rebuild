@@ -2,11 +2,11 @@
 
 Status: **YELLOW — awaiting Android review**
 
-Build marker: `WC-P8UX-0814`
+Build marker: `WC-P8UXR1-0814`
 
 Phase 8 completes the planned application. It adds exact and reversible local-data recovery, production offline media coverage, safe service-worker updates, final accessibility and zoom acceptance, and release evidence. The detailed release record is the [Phase 8 cutover report](../cutover-report.md).
 
-The `0.8.4` UX enhancement adds durable prescription-level defer/return, an accessible sticky workout navigator, explicit missed-exercise finish consent, omission-safe analytics, and verified one-time celebration. Evidence is in the [active-workout navigation enhancement report](PHASE_8_UX_ENHANCEMENT.md); the phase remains YELLOW pending another separate retest.
+The `0.8.5` UX repair preserves durable prescription-level defer/return, explicit missed-exercise finish consent, omission-safe analytics, and verified one-time celebration while correcting the independently reproduced 42 px landscape shortcut targets to a measured 46 px minimum. Evidence is in the [active-workout navigation enhancement report](PHASE_8_UX_ENHANCEMENT.md); the phase remains YELLOW pending another independent retest and the outstanding physical-device/runtime gates.
 
 ## Acceptance summary
 

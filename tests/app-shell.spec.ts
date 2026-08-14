@@ -151,7 +151,7 @@ test('logs, edits, replaces, pauses, and resumes one durable active workout', as
     .click();
   await page.getByRole('button', { name: 'Start workout' }).click();
   await expect(page.getByText('Active workout')).toBeVisible();
-  await expect(page.getByText('WC-P8UX-0814')).toBeVisible();
+  await expect(page.getByText('WC-P8UXR1-0814')).toBeVisible();
   await expect(page.getByText('Adaptive Coach', { exact: true })).toBeVisible();
 
   await page.getByRole('button', { name: /Open demonstration for/ }).click();

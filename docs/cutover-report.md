@@ -2,11 +2,11 @@
 
 Status: **YELLOW — implementation complete; awaiting Android review**
 
-Release: `0.8.4`
+Release: `0.8.5`
 
-Build marker: `WC-P8UX-0814`
+Build marker: `WC-P8UXR1-0814`
 
-Enhancement status: active workouts now have durable defer/return navigation, explicit missed-exercise finish consent, omission-safe summaries, and verified one-time celebration. See the [Phase 8 UX enhancement report](phase-reports/PHASE_8_UX_ENHANCEMENT.md). Final approval remains withheld pending a separate adversarial retest.
+Enhancement status: active workouts retain durable defer/return navigation, explicit missed-exercise finish consent, omission-safe summaries, and verified one-time celebration. The independently reproduced 42 px landscape shortcut regression is repaired with a 46 px minimum and actual bounding-box coverage. See the [Phase 8 UX enhancement report](phase-reports/PHASE_8_UX_ENHANCEMENT.md). Final approval remains withheld pending a separate adversarial retest and required physical-device/runtime gates.
 
 ## Release scope
 
@@ -38,7 +38,7 @@ The local release matrix passed: 146/146 unit and integration tests, 20/20 Andro
 
 ## Android review
 
-The remaining gate is independent adversarial retesting plus hands-on review on the user's Android device: install or refresh the PWA, confirm the `WC-P8UX-0814` marker, stress the new navigator, skip/return, grouped-block, finish-warning, one-time celebration, and reduced-motion behavior while preserving all earlier Phase 8 findings. No Phase 9 is defined.
+The remaining gates are an independent adversarial retest plus hands-on review on the user's Android device: install or refresh the PWA, confirm `WC-P8UXR1-0814`, perform a true deployed-origin offline reload and restore-file flow, exercise all shortcuts and Catalog with a physical keyboard, verify runtime reduced-motion completion, and inspect browser chrome/text scaling/orientation changes. Automated exact-build equivalents pass but are not represented as substitutes for these manual gates. No Phase 9 is defined.
 
 ## Evidence
 
