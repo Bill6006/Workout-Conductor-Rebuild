@@ -11,7 +11,7 @@ async function startSyntheticWorkout(page: Page) {
   await page
     .getByRole('button', { name: 'Explore with a synthetic demo profile' })
     .click();
-  await expect(page.getByText('Phase 8 final repair')).toBeVisible();
+  await expect(page.getByText('Phase 8 UX enhancement')).toBeVisible();
 }
 
 async function saveViewport(page: Page, filename: string) {
@@ -58,8 +58,7 @@ test('captures the Phase 6 mobile and desktop review evidence', async ({
 
   await page.setViewportSize({ width: 412, height: 915 });
   for (let block = 0; block < 4; block += 1) {
-    await page.getByRole('button', { name: 'Set options' }).click();
-    await page.getByRole('button', { name: 'Skip this block' }).click();
+    await page.getByRole('button', { name: 'Skip for now' }).click();
   }
   await expect(page.getByText(/Superset · round 1 of/)).toBeVisible();
   await page.evaluate(() => window.scrollTo(0, 0));

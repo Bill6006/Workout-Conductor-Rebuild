@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { equipmentById } from '../catalog/equipment';
 import { exerciseById } from '../catalog/exercises';
 import type { Exercise } from '../catalog/schema';
@@ -31,17 +31,22 @@ import {
 } from '../features/activeWorkout/schema';
 import {
   blockMoves,
+  deferCurrentExercise,
   editSet,
   elapsedSessionSeconds,
+  finishSession,
   initialSetValues,
   logSet,
   nextSetSlot,
   pauseSession,
+  returnToExercise,
   resumeSession,
   setWarmupChoice,
-  skipCurrentBlock,
   undoLastSet,
+  unfinishedExercises,
+  workoutExerciseQueue,
   workoutCompletion,
+  type WorkoutExerciseQueueItem,
 } from '../features/activeWorkout/session';
 import {
   loadExerciseNotes,
@@ -52,12 +57,160 @@ type ActiveWorkoutViewProps = {
   session: ActiveSession;
   bundle: AppBundle;
   sessionHistory: ActiveSession[];
-  onSessionChange: (session: ActiveSession, message?: string) => Promise<void>;
+  onSessionChange: (
+    session: ActiveSession,
+    message?: string,
+  ) => Promise<boolean>;
   onSaveWorkout: (
     workout: GeneratedWorkout,
     sessionId: string,
   ) => Promise<void>;
 };
+
+function WorkoutNavigator({
+  canAct,
+  busy,
+  onCurrent,
+  onQueue,
+  onNote,
+  onPlateMath,
+  onSkip,
+}: {
+  canAct: boolean;
+  busy: boolean;
+  onCurrent: () => void;
+  onQueue: () => void;
+  onNote: () => void;
+  onPlateMath: () => void;
+  onSkip: () => void;
+}) {
+  const actions = [
+    {
+      label: 'Current',
+      icon: 'target' as const,
+      action: onCurrent,
+      disabled: !canAct || busy,
+    },
+    { label: 'Queue', icon: 'list' as const, action: onQueue, disabled: busy },
+    {
+      label: 'Note',
+      icon: 'note' as const,
+      action: onNote,
+      disabled: !canAct || busy,
+    },
+    {
+      label: 'Plates',
+      icon: 'calculator' as const,
+      action: onPlateMath,
+      disabled: !canAct || busy,
+    },
+    {
+      label: 'Skip for now',
+      icon: 'skip' as const,
+      action: onSkip,
+      disabled: !canAct || busy,
+    },
+  ];
+  return (
+    <nav className="workout-navigator" aria-label="Workout shortcuts">
+      {actions.map((item) => (
+        <button
+          key={item.label}
+          type="button"
+          disabled={item.disabled}
+          onClick={item.action}
+          aria-label={item.label}
+        >
+          <Icon name={item.icon} size={18} />
+          <span>{item.label === 'Skip for now' ? 'Skip' : item.label}</span>
+        </button>
+      ))}
+    </nav>
+  );
+}
+
+function ExerciseQueueSheet({
+  items,
+  onReturn,
+  onClose,
+}: {
+  items: WorkoutExerciseQueueItem[];
+  onReturn: (prescriptionId: string) => void;
+  onClose: () => void;
+}) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+  useEffect(() => {
+    closeRef.current?.focus();
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onCloseRef.current();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, []);
+  return (
+    <div className="sheet-backdrop">
+      <section
+        className="native-sheet workout-queue-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="workout-queue-title"
+      >
+        <div className="sheet-handle" />
+        <div className="sheet-heading">
+          <div>
+            <p className="eyebrow">Workout navigator</p>
+            <h2 id="workout-queue-title">Exercise queue</h2>
+          </div>
+          <button ref={closeRef} type="button" onClick={onClose}>
+            Close
+          </button>
+        </div>
+        <p className="queue-help">
+          Skipped exercises stay saved here until you return or finish without
+          them.
+        </p>
+        <div className="workout-queue-list">
+          {items.map((item, index) => (
+            <article key={item.prescriptionId} data-status={item.status}>
+              <span>{String(index + 1).padStart(2, '0')}</span>
+              <div>
+                <strong>{item.exerciseName}</strong>
+                <small>{item.status}</small>
+              </div>
+              {item.status === 'skipped' && (
+                <button
+                  type="button"
+                  onClick={() => onReturn(item.prescriptionId)}
+                >
+                  Return
+                </button>
+              )}
+            </article>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function CompletionCelebration() {
+  return (
+    <div className="completion-celebration" role="status" aria-live="polite">
+      <div className="completion-confetti" aria-hidden="true">
+        {Array.from({ length: 18 }, (_, index) => (
+          <i key={index} style={{ '--piece': index } as CSSProperties} />
+        ))}
+      </div>
+      <span>
+        <Icon name="spark" size={18} /> Workout complete!
+      </span>
+    </div>
+  );
+}
 
 function formatClock(seconds: number) {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
@@ -124,6 +277,9 @@ export function ActiveWorkoutView({
   const [now, setNow] = useState(() => new Date(session.updatedAt).getTime());
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [showOptions, setShowOptions] = useState(false);
+  const [showQueue, setShowQueue] = useState(false);
+  const [showFinishWarning, setShowFinishWarning] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
   const [showAlternatives, setShowAlternatives] = useState(false);
   const [showWhy, setShowWhy] = useState(false);
   const [noteDraft, setNoteDraft] = useState('');
@@ -131,7 +287,14 @@ export function ActiveWorkoutView({
   const [interactionMessage, setInteractionMessage] = useState('');
   const [setSubmissionPending, setSetSubmissionPending] = useState(false);
   const [workoutSavePending, setWorkoutSavePending] = useState(false);
+  const [navigationPending, setNavigationPending] = useState(false);
   const setSubmissionLock = useRef(false);
+  const navigationLock = useRef(false);
+  const finishLock = useRef(false);
+  const currentExerciseRef = useRef<HTMLElement>(null);
+  const noteRef = useRef<HTMLDetailsElement>(null);
+  const plateMathRef = useRef<HTMLDetailsElement>(null);
+  const finishWarningPrimaryRef = useRef<HTMLButtonElement>(null);
   const [pendingCoachAction, setPendingCoachAction] =
     useState<CoachAction | null>(null);
   const [feedbackDifficulty, setFeedbackDifficulty] = useState<
@@ -154,6 +317,8 @@ export function ActiveWorkoutView({
     ? session.customExerciseSnapshots[move.exerciseId]
     : undefined;
   const completed = workoutCompletion(session);
+  const queue = workoutExerciseQueue(session);
+  const unfinished = unfinishedExercises(session);
   const livePrs = detectSessionPersonalRecords(
     session,
     sessionHistory,
@@ -185,6 +350,16 @@ export function ActiveWorkoutView({
     const interval = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (!showFinishWarning) return;
+    finishWarningPrimaryRef.current?.focus();
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowFinishWarning(false);
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [showFinishWarning]);
 
   const currentExerciseId = move?.exerciseId;
   const currentSessionNote = currentExerciseId
@@ -240,6 +415,87 @@ export function ActiveWorkoutView({
   function changeSession(next: ActiveSession, message?: string) {
     if (message) setInteractionMessage(message);
     return onSessionChange(next, message);
+  }
+
+  function scrollTo(ref: { current: HTMLElement | null }) {
+    ref.current?.scrollIntoView?.({
+      behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+        ? 'auto'
+        : 'smooth',
+      block: 'start',
+    });
+  }
+
+  function openUtility(ref: { current: HTMLDetailsElement | null }) {
+    if (!ref.current) return;
+    ref.current.open = true;
+    scrollTo(ref);
+    window.setTimeout(
+      () => ref.current?.querySelector<HTMLElement>('textarea, input')?.focus(),
+      250,
+    );
+  }
+
+  async function handleSkipForNow() {
+    if (!slot || navigationLock.current || session.status !== 'active') return;
+    navigationLock.current = true;
+    setNavigationPending(true);
+    try {
+      const saved = await changeSession(
+        deferCurrentExercise(session),
+        `${slot.exerciseName} skipped for now. Return from the exercise queue anytime before finishing.`,
+      );
+      if (saved) setShowOptions(false);
+    } finally {
+      // Hold the navigation boundary through the browser's complete
+      // double-click window so the second activation cannot land on the next
+      // exercise after a very fast verified write.
+      await new Promise((resolve) => window.setTimeout(resolve, 450));
+      navigationLock.current = false;
+      setNavigationPending(false);
+    }
+  }
+
+  async function handleReturnToExercise(prescriptionId: string) {
+    if (navigationLock.current) return;
+    navigationLock.current = true;
+    setNavigationPending(true);
+    try {
+      const item = queue.find(
+        (candidate) => candidate.prescriptionId === prescriptionId,
+      );
+      const saved = await changeSession(
+        returnToExercise(session, prescriptionId),
+        `${item?.exerciseName ?? 'Skipped exercise'} returned to the current position. Completed records were preserved.`,
+      );
+      if (saved) {
+        setShowQueue(false);
+        window.setTimeout(() => scrollTo(currentExerciseRef), 50);
+      }
+    } finally {
+      navigationLock.current = false;
+      setNavigationPending(false);
+    }
+  }
+
+  async function handleFinish(omitUnfinished: boolean) {
+    if (finishLock.current) return;
+    finishLock.current = true;
+    try {
+      const finished = finishSession(session, omitUnfinished);
+      const saved = await changeSession(
+        finished,
+        omitUnfinished
+          ? 'Workout finished and verified. Missed exercises were recorded as intentionally omitted.'
+          : 'Workout finished and verified locally.',
+      );
+      if (!saved) return;
+      setShowFinishWarning(false);
+      setShowCelebration(true);
+      window.setTimeout(() => setShowCelebration(false), 2200);
+    } finally {
+      finishLock.current = false;
+    }
   }
 
   function startRest(next: ActiveSession, restSeconds: number) {
@@ -549,6 +805,7 @@ export function ActiveWorkoutView({
         className="completion-surface"
         aria-labelledby="completion-title"
       >
+        {showCelebration && <CompletionCelebration />}
         <div className="completion-check">
           <Icon name="check" size={34} />
         </div>
@@ -578,7 +835,7 @@ export function ActiveWorkoutView({
         </div>
         <div className="completion-flags">
           <span>{completed.warmupSets} warm-ups excluded</span>
-          <span>{completed.skippedBlocks} skipped blocks</span>
+          <span>{completed.omittedExercises} intentionally omitted</span>
           <span>Verified local save</span>
         </div>
         {summary.personalRecords.length > 0 && (
@@ -640,6 +897,18 @@ export function ActiveWorkoutView({
                   ? `${summary.substitutions} accepted; original completed records preserved.`
                   : 'No substitutions accepted.'}
               </p>
+            </article>
+            <article>
+              <strong>Intentionally omitted</strong>
+              {summary.omittedExercises.length > 0 ? (
+                <ul>
+                  {summary.omittedExercises.map((name) => (
+                    <li key={name}>{name}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p>None. Every planned exercise was completed.</p>
+              )}
             </article>
             <article>
               <strong>Next targets</strong>
@@ -735,7 +1004,151 @@ export function ActiveWorkoutView({
     );
   }
 
-  if (!slot || !block || !move) return null;
+  if (!slot || !block || !move) {
+    const firstDeferred = queue.find((item) => item.status === 'skipped');
+    return (
+      <>
+        <header className="active-workout-header">
+          <div>
+            <p className="eyebrow">Active workout</p>
+            <h1>{session.workout.title}</h1>
+          </div>
+          <button
+            type="button"
+            className="pause-button"
+            onClick={() =>
+              changeSession(pauseSession(session), 'Workout paused.')
+            }
+          >
+            Pause
+          </button>
+        </header>
+        <div className="phase-banner">
+          <span className="status-pill">
+            <span /> Phase 8 UX enhancement
+          </span>
+          <span className="build-label">WC-P8UX-0814</span>
+        </div>
+        <WorkoutNavigator
+          canAct={false}
+          busy={navigationPending}
+          onCurrent={() => undefined}
+          onQueue={() => setShowQueue(true)}
+          onNote={() => undefined}
+          onPlateMath={() => undefined}
+          onSkip={() => undefined}
+        />
+        <section
+          className="finish-workout-card"
+          aria-labelledby="finish-workout-title"
+        >
+          <div className="completion-check">
+            <Icon name="check" size={30} />
+          </div>
+          <p className="eyebrow">Final check</p>
+          <h2 id="finish-workout-title">
+            {unfinished.length > 0
+              ? `${unfinished.length} skipped ${unfinished.length === 1 ? 'exercise is' : 'exercises are'} still waiting.`
+              : 'All planned exercises are complete.'}
+          </h2>
+          <p>
+            {unfinished.length > 0
+              ? 'Return to them from the queue, or finish and record them as intentionally omitted.'
+              : 'Finish now to verify the completed session and close the workout.'}
+          </p>
+          <button
+            className="primary-button"
+            type="button"
+            onClick={() =>
+              unfinished.length > 0
+                ? setShowFinishWarning(true)
+                : void handleFinish(false)
+            }
+          >
+            Finish workout
+          </button>
+          {unfinished.length > 0 && (
+            <button type="button" onClick={() => setShowQueue(true)}>
+              Review exercise queue
+            </button>
+          )}
+        </section>
+        {showQueue && (
+          <ExerciseQueueSheet
+            items={queue}
+            onReturn={(id) => void handleReturnToExercise(id)}
+            onClose={() => setShowQueue(false)}
+          />
+        )}
+        {showFinishWarning && (
+          <div className="sheet-backdrop">
+            <section
+              className="native-sheet finish-warning-sheet"
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="finish-warning-title"
+            >
+              <p className="eyebrow">Missed workout items</p>
+              <h2 id="finish-warning-title">Finish without these exercises?</h2>
+              <ul>
+                {unfinished.map((item) => (
+                  <li key={item.prescriptionId}>{item.exerciseName}</li>
+                ))}
+              </ul>
+              <p>
+                They will be recorded as intentionally omitted and excluded from
+                volume, personal records, and progression.
+              </p>
+              <div className="finish-warning-actions">
+                <button
+                  ref={finishWarningPrimaryRef}
+                  className="primary-button"
+                  type="button"
+                  disabled={!firstDeferred}
+                  onClick={() =>
+                    firstDeferred &&
+                    void handleReturnToExercise(firstDeferred.prescriptionId)
+                  }
+                >
+                  Return to missed exercises
+                </button>
+                <button type="button" onClick={() => void handleFinish(true)}>
+                  Finish without them
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowFinishWarning(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </section>
+          </div>
+        )}
+        {session.status === 'paused' && (
+          <div className="sheet-backdrop">
+            <section
+              className="pause-sheet"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="pause-workout-title"
+            >
+              <p className="eyebrow">Workout paused</p>
+              <h2 id="pause-workout-title">Your place is saved.</h2>
+              <button
+                type="button"
+                onClick={() =>
+                  changeSession(resumeSession(session), 'Workout resumed.')
+                }
+              >
+                Resume workout
+              </button>
+            </section>
+          </div>
+        )}
+      </>
+    );
+  }
   const warmupChoice = session.warmupSelections[move.prescriptionId];
   const nextBlock = session.workout.blocks[slot.blockIndex + 1];
 
@@ -759,10 +1172,20 @@ export function ActiveWorkoutView({
 
       <div className="phase-banner">
         <span className="status-pill">
-          <span /> Phase 8 final repair
+          <span /> Phase 8 UX enhancement
         </span>
-        <span className="build-label">WC-P8R3-0811</span>
+        <span className="build-label">WC-P8UX-0814</span>
       </div>
+
+      <WorkoutNavigator
+        canAct={session.status === 'active'}
+        busy={navigationPending}
+        onCurrent={() => scrollTo(currentExerciseRef)}
+        onQueue={() => setShowQueue(true)}
+        onNote={() => openUtility(noteRef)}
+        onPlateMath={() => openUtility(plateMathRef)}
+        onSkip={() => void handleSkipForNow()}
+      />
 
       {livePrs.length > 0 && (
         <div className="live-pr-strip" role="status">
@@ -853,6 +1276,7 @@ export function ActiveWorkoutView({
       )}
 
       <section
+        ref={currentExerciseRef}
         className={`active-exercise-card${block.kind === 'superset' ? ' active-exercise-card--superset' : ''}`}
         aria-labelledby="active-exercise-title"
       >
@@ -1086,7 +1510,7 @@ export function ActiveWorkoutView({
       </section>
 
       <section className="workout-utility-grid">
-        <details className="workout-utility-card">
+        <details ref={noteRef} className="workout-utility-card">
           <summary>Exercise note</summary>
           <label>
             <span>Grip, seat height, setup, or form cue</span>
@@ -1102,7 +1526,7 @@ export function ActiveWorkoutView({
           </button>
         </details>
 
-        <details className="workout-utility-card">
+        <details ref={plateMathRef} className="workout-utility-card">
           <summary>Plate Math</summary>
           <label>
             <span>Target weight</span>
@@ -1224,15 +1648,10 @@ export function ActiveWorkoutView({
             </button>
             <button
               type="button"
-              onClick={() => {
-                changeSession(
-                  skipCurrentBlock(session),
-                  'Unfinished block skipped.',
-                );
-                setShowOptions(false);
-              }}
+              disabled={navigationPending}
+              onClick={() => void handleSkipForNow()}
             >
-              Skip this block
+              Skip exercise for now
             </button>
             <button
               type="button"
@@ -1248,6 +1667,14 @@ export function ActiveWorkoutView({
             </button>
           </section>
         </div>
+      )}
+
+      {showQueue && (
+        <ExerciseQueueSheet
+          items={queue}
+          onReturn={(id) => void handleReturnToExercise(id)}
+          onClose={() => setShowQueue(false)}
+        />
       )}
 
       {showAlternatives && (

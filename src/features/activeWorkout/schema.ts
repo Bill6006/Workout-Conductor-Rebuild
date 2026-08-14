@@ -112,6 +112,9 @@ export const ActiveSessionSchema = z
     pinnedExerciseIds: z.array(z.string()),
     acceptedAlternativeIds: z.array(z.string()),
     skippedBlockIds: z.array(z.string()),
+    deferredPrescriptionIds: z.array(z.string()).default([]),
+    omittedPrescriptionIds: z.array(z.string()).default([]),
+    completionCelebratedAt: z.string().datetime().nullable().default(null),
     restTimer: RestTimerSchema.nullable(),
     lastRestStartedAt: z.string().datetime().nullable().default(null),
     lastRestTargetSeconds: z
@@ -185,6 +188,9 @@ const ActiveSessionImportObjectSchema = z.object({
   pinnedExerciseIds: z.array(z.string()),
   acceptedAlternativeIds: z.array(z.string()),
   skippedBlockIds: z.array(z.string()),
+  deferredPrescriptionIds: z.array(z.string()).default([]),
+  omittedPrescriptionIds: z.array(z.string()).default([]),
+  completionCelebratedAt: z.string().datetime().nullable().default(null),
   restTimer: RestTimerSchema.nullable(),
   lastRestStartedAt: z.string().datetime().nullable().default(null),
   lastRestTargetSeconds: z
@@ -251,10 +257,23 @@ export function migrateActiveSession(
       all.findIndex((candidate) => setSlotIdentity(candidate) === key) === index
     );
   });
+  const legacySkippedPrescriptions = legacy.workout.blocks
+    .filter((block) => legacy.skippedBlockIds.includes(block.blockId))
+    .flatMap((block) =>
+      block.kind === 'exercise'
+        ? [block.prescription.prescriptionId]
+        : block.moves.map((move) => move.prescriptionId),
+    );
   return ActiveSessionSchema.parse({
     ...legacy,
     schemaVersion: 2,
     weightUnit,
+    omittedPrescriptionIds: Array.from(
+      new Set([
+        ...legacy.omittedPrescriptionIds,
+        ...legacySkippedPrescriptions,
+      ]),
+    ),
     records: records.map((record) => {
       const legacyInvalidReps =
         record.reps > MAX_SET_REPS

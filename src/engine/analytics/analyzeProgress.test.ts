@@ -146,6 +146,40 @@ describe('Phase 7 analytics and personal records', () => {
     expect(summary.nextTargets.length).toBeGreaterThan(0);
   });
 
+  it('records intentional omissions without creating volume, PR, or progression targets', () => {
+    const base = completed('2026-08-08T12:00:00.000Z', 110, 10);
+    const allMoves = base.workout.blocks.flatMap((block) =>
+      block.kind === 'exercise' ? [block.prescription] : block.moves,
+    );
+    const omittedMove = allMoves.find(
+      (candidate) =>
+        candidate.prescriptionId !== base.records[0].prescriptionId &&
+        allMoves.filter((move) => move.exerciseName === candidate.exerciseName)
+          .length === 1,
+    )!;
+    const current = ActiveSessionSchema.parse({
+      ...base,
+      omittedPrescriptionIds: [omittedMove.prescriptionId],
+    });
+    const summary = buildSessionSummary(current, [], bundle.profile!);
+    expect(summary.omittedExercises).toEqual([omittedMove.exerciseName]);
+    expect(summary.nextTargets.map((target) => target.split(':')[0])).toEqual(
+      allMoves
+        .filter(
+          (candidate) =>
+            candidate.prescriptionId !== omittedMove.prescriptionId,
+        )
+        .slice(0, 3)
+        .map((candidate) => candidate.exerciseName),
+    );
+    expect(summary.volume).toBe(1100);
+    expect(
+      summary.personalRecords.every(
+        (record) => record.exerciseId !== omittedMove.exerciseId,
+      ),
+    ).toBe(true);
+  });
+
   it('keeps kilogram units in Progress milestone details', () => {
     const first = completed('2026-08-01T12:00:00.000Z', 35, 8, false, 'kg');
     const heavier = completed('2026-08-08T12:00:00.000Z', 40, 8, false, 'kg');

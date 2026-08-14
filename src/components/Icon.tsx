@@ -19,7 +19,12 @@ export type IconName =
   | 'download'
   | 'upload'
   | 'undo'
-  | 'plus';
+  | 'plus'
+  | 'target'
+  | 'list'
+  | 'note'
+  | 'calculator'
+  | 'skip';
 
 export function Icon({ name, size = 22 }: { name: IconName; size?: number }) {
   const common = {
@@ -108,6 +113,27 @@ export function Icon({ name, size = 22 }: { name: IconName; size?: number }) {
       </>
     ),
     plus: <path d="M12 5v14M5 12h14" />,
+    target: (
+      <>
+        <circle cx="12" cy="12" r="8.5" />
+        <circle cx="12" cy="12" r="3.5" />
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+      </>
+    ),
+    list: <path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" />,
+    note: (
+      <>
+        <path d="M5 3.5h14v17H5z" />
+        <path d="M8 8h8M8 12h8M8 16h5" />
+      </>
+    ),
+    calculator: (
+      <>
+        <rect x="4" y="2.5" width="16" height="19" rx="2.5" />
+        <path d="M7.5 6.5h9M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 19h.01M12 19h4" />
+      </>
+    ),
+    skip: <path d="m5 5 8 7-8 7V5Zm9 0 6 7-6 7V5Z" />,
   };
 
   return <svg {...common}>{paths[name]}</svg>;

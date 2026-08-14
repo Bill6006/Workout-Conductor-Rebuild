@@ -10,11 +10,11 @@ https://bill6006.github.io/Workout-Conductor-Rebuild/
 
 Phase 8 completes the planned application with exact and reversible local-data recovery, production offline exercise demonstrations, safe PWA updates, accessibility and 200% zoom acceptance, and final release polish over the deterministic coaching, workout-execution, and evidence-led progress foundation.
 
-The current `0.8.3` repair build (`WC-P8R3-0811`) routes completed-session history cards through the same unit-safe volume calculation as aggregate analytics, closing the final mixed-unit display defect found by independent retest. It remains YELLOW until a separate retest confirms the deployed repair.
+The current `0.8.4` build (`WC-P8UX-0814`) adds a sticky active-workout navigator, durable skip-for-now and return, explicit missed-exercise finish consent, omission-safe summaries, and verified one-time celebration. It remains YELLOW until a separate adversarial retest confirms the deployed enhancement without regressing earlier Phase 8 repairs.
 
 Complete backups cover every protected IndexedDB store and local setting, preserve unknown fields, and require a no-change preview plus explicit confirmation before restore. Critical saves and restores are read back and verified, failed restores roll back automatically, and all user data remains browser-local.
 
-See the [Phase 8 cutover report](docs/cutover-report.md), [final unit-display repair report](docs/phase-reports/PHASE_8_RETEST_REPAIR_2.md), [data-safety contract](docs/data-safety.md), and [PWA/accessibility acceptance](docs/pwa-and-accessibility.md).
+See the [Phase 8 cutover report](docs/cutover-report.md), [active-workout navigation enhancement report](docs/phase-reports/PHASE_8_UX_ENHANCEMENT.md), [data-safety contract](docs/data-safety.md), and [PWA/accessibility acceptance](docs/pwa-and-accessibility.md).
 
 ## Local development
 

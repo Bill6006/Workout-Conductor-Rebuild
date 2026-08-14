@@ -266,15 +266,17 @@ export default function App() {
         setStorageStatus(
           'Latest active-workout change was written, read back, schema-validated, and verified.',
         );
+        return true;
       })
       .catch((error: unknown) => {
-        if (sequence !== activeSaveSequence.current) return;
+        if (sequence !== activeSaveSequence.current) return false;
         setActiveSession(previous);
         const detail =
           error instanceof Error
             ? error.message
             : 'Active workout save failed.';
         setAnnouncement(`${detail} Previous verified session restored.`);
+        return false;
       });
   }
 
@@ -286,7 +288,7 @@ export default function App() {
         </div>
         <span className="loading-pulse" />
         <p>Opening your private training space…</p>
-        <small>WC-P8R3-0811</small>
+        <small>WC-P8UX-0814</small>
       </div>
     );
   }

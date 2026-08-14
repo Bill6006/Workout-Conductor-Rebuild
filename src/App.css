@@ -1499,6 +1499,408 @@
   }
 }
 
+/* Phase 8 UX enhancement: durable workout navigation and completion */
+.workout-navigator {
+  position: sticky;
+  top: 8px;
+  z-index: 18;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 5px;
+  margin: 10px 0 14px;
+  padding: 6px;
+  border: 1px solid rgba(190, 255, 45, 0.2);
+  border-radius: 17px;
+  background: rgba(9, 13, 10, 0.94);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(14px);
+}
+
+.workout-navigator button {
+  display: flex;
+  min-width: 0;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px 2px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: #c5cec7;
+  font: inherit;
+}
+
+.workout-navigator button:last-child {
+  color: #f0cf73;
+}
+
+.workout-navigator button:hover,
+.workout-navigator button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  background: rgba(190, 255, 45, 0.08);
+  color: var(--accent);
+}
+
+.workout-navigator button:disabled {
+  opacity: 0.34;
+}
+
+.workout-navigator span {
+  overflow: hidden;
+  max-width: 100%;
+  font-size: 0.58rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.active-exercise-card,
+.workout-utility-card {
+  scroll-margin-top: 88px;
+}
+
+.workout-queue-sheet,
+.finish-warning-sheet {
+  max-height: min(80vh, 680px);
+  overflow-y: auto;
+}
+
+.queue-help,
+.finish-warning-sheet > p {
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.workout-queue-list {
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.workout-queue-list article {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 50px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.workout-queue-list article > span {
+  color: #738075;
+  font-size: 0.65rem;
+  font-weight: 850;
+}
+
+.workout-queue-list article > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.workout-queue-list strong {
+  overflow: hidden;
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workout-queue-list small {
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.workout-queue-list article[data-status='current'] {
+  border-color: rgba(190, 255, 45, 0.38);
+  background: rgba(190, 255, 45, 0.07);
+}
+
+.workout-queue-list article[data-status='completed'] small,
+.workout-queue-list article[data-status='current'] small {
+  color: var(--accent);
+}
+
+.workout-queue-list article[data-status='skipped'] {
+  border-color: rgba(240, 207, 115, 0.28);
+}
+
+.workout-queue-list article[data-status='skipped'] small {
+  color: #f0cf73;
+}
+
+.workout-queue-list button,
+.finish-workout-card > button:not(.primary-button),
+.finish-warning-actions button:not(.primary-button) {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.finish-workout-card {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 26px 18px;
+  border: 1px solid rgba(190, 255, 45, 0.25);
+  border-radius: 24px;
+  background: linear-gradient(145deg, #151d17, #0b100d 72%);
+  text-align: center;
+}
+
+.finish-workout-card h2,
+.finish-workout-card p {
+  margin: 0;
+}
+
+.finish-workout-card h2 {
+  font-size: 1.35rem;
+}
+
+.finish-workout-card > p:not(.eyebrow) {
+  max-width: 480px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.finish-workout-card .primary-button {
+  width: min(100%, 420px);
+  min-height: 52px;
+}
+
+.finish-warning-sheet ul {
+  display: grid;
+  gap: 5px;
+  margin: 12px 0;
+  padding-left: 20px;
+  color: #f0cf73;
+  font-size: 0.8rem;
+}
+
+.finish-warning-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.finish-warning-actions button {
+  width: 100%;
+  min-height: 46px;
+}
+
+.completion-celebration {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.completion-celebration > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border: 1px solid rgba(190, 255, 45, 0.4);
+  border-radius: 999px;
+  background: #121a13;
+  color: var(--accent);
+  font-weight: 900;
+  box-shadow: 0 16px 60px rgba(0, 0, 0, 0.5);
+  animation: completion-badge 2.1s ease both;
+}
+
+.completion-confetti {
+  position: absolute;
+  inset: 0;
+}
+
+.completion-confetti i {
+  --tx: 0vw;
+  --ty: 35vh;
+  position: absolute;
+  top: 48%;
+  left: 50%;
+  width: 9px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--accent);
+  animation: confetti-burst 1.7s cubic-bezier(0.15, 0.72, 0.35, 1) both;
+  animation-delay: calc(var(--piece) * -0.018s);
+}
+
+.completion-confetti i:nth-child(3n) {
+  background: #f0cf73;
+}
+.completion-confetti i:nth-child(3n + 1) {
+  background: #7db5ff;
+}
+.completion-confetti i:nth-child(1) {
+  --tx: -46vw;
+  --ty: -38vh;
+}
+.completion-confetti i:nth-child(2) {
+  --tx: -34vw;
+  --ty: -12vh;
+}
+.completion-confetti i:nth-child(3) {
+  --tx: -42vw;
+  --ty: 24vh;
+}
+.completion-confetti i:nth-child(4) {
+  --tx: -27vw;
+  --ty: 39vh;
+}
+.completion-confetti i:nth-child(5) {
+  --tx: -19vw;
+  --ty: -44vh;
+}
+.completion-confetti i:nth-child(6) {
+  --tx: -10vw;
+  --ty: 42vh;
+}
+.completion-confetti i:nth-child(7) {
+  --tx: -4vw;
+  --ty: -32vh;
+}
+.completion-confetti i:nth-child(8) {
+  --tx: 8vw;
+  --ty: 44vh;
+}
+.completion-confetti i:nth-child(9) {
+  --tx: 14vw;
+  --ty: -40vh;
+}
+.completion-confetti i:nth-child(10) {
+  --tx: 22vw;
+  --ty: 35vh;
+}
+.completion-confetti i:nth-child(11) {
+  --tx: 31vw;
+  --ty: -33vh;
+}
+.completion-confetti i:nth-child(12) {
+  --tx: 43vw;
+  --ty: 20vh;
+}
+.completion-confetti i:nth-child(13) {
+  --tx: 46vw;
+  --ty: -12vh;
+}
+.completion-confetti i:nth-child(14) {
+  --tx: 36vw;
+  --ty: 42vh;
+}
+.completion-confetti i:nth-child(15) {
+  --tx: 12vw;
+  --ty: 28vh;
+}
+.completion-confetti i:nth-child(16) {
+  --tx: -15vw;
+  --ty: 22vh;
+}
+.completion-confetti i:nth-child(17) {
+  --tx: 27vw;
+  --ty: -8vh;
+}
+.completion-confetti i:nth-child(18) {
+  --tx: -30vw;
+  --ty: -29vh;
+}
+
+@keyframes confetti-burst {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.3) rotate(0deg);
+  }
+  10% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--tx), var(--ty)) scale(1) rotate(540deg);
+  }
+}
+
+@keyframes completion-badge {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  14%,
+  78% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .completion-confetti {
+    display: none;
+  }
+  .completion-celebration > span {
+    animation: none;
+  }
+  .workout-navigator {
+    scroll-behavior: auto;
+  }
+}
+
+@media (max-width: 370px) {
+  .workout-navigator {
+    gap: 2px;
+    padding: 4px;
+  }
+
+  .workout-navigator button {
+    min-height: 46px;
+  }
+
+  .workout-navigator span {
+    font-size: 0.53rem;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .workout-navigator {
+    top: 4px;
+    margin-bottom: 9px;
+  }
+
+  .workout-navigator button {
+    min-height: 42px;
+    flex-direction: row;
+  }
+
+  .workout-queue-sheet,
+  .finish-warning-sheet {
+    max-height: 90vh;
+  }
+}
+
 /* Phase 8 · exact data safety, diagnostics, and controlled PWA updates */
 
 .pwa-update-banner,

@@ -5,7 +5,7 @@ async function openDemo(page: Page) {
   await page
     .getByRole('button', { name: 'Explore with a synthetic demo profile' })
     .click();
-  await expect(page.getByText('WC-P8R3-0811')).toBeVisible();
+  await expect(page.getByText('WC-P8UX-0814')).toBeVisible();
 }
 
 async function rapidSetActivation(page: Page) {
@@ -16,9 +16,18 @@ async function rapidSetActivation(page: Page) {
   await page.getByRole('button', { name: 'Log set' }).click({ force: true });
 }
 
-async function skipCurrentBlock(page: Page) {
-  await page.getByRole('button', { name: 'Set options' }).click();
-  await page.getByRole('button', { name: 'Skip this block' }).click();
+async function skipCurrentExercise(page: Page) {
+  await page.getByRole('button', { name: 'Skip for now' }).click();
+}
+
+async function finishWithoutRemaining(page: Page) {
+  const skip = page.getByRole('button', { name: 'Skip for now' });
+  for (let index = 0; index < 20 && (await skip.isEnabled()); index += 1) {
+    await skip.click();
+    await page.waitForTimeout(500);
+  }
+  await page.getByRole('button', { name: 'Finish workout' }).click();
+  await page.getByRole('button', { name: 'Finish without them' }).click();
 }
 
 test('QA-P8-005 latches warm-up, ordinary, and superset set creation plus completion save', async ({
@@ -46,8 +55,12 @@ test('QA-P8-005 latches warm-up, ordinary, and superset set creation plus comple
   await expect(page.getByText('Reps must be between 1 and 200.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Log set' })).toBeDisabled();
 
-  await skipCurrentBlock(page);
-  await page.getByRole('button', { name: 'Skip', exact: true }).click();
+  await skipCurrentExercise(page);
+  const optionalWarmupSkip = page.getByRole('button', {
+    name: 'Skip',
+    exact: true,
+  });
+  if (await optionalWarmupSkip.isVisible()) await optionalWarmupSkip.click();
   await rapidSetActivation(page);
   await page.waitForTimeout(550);
   await expect(page.locator('.completed-set-row')).toHaveCount(1);
@@ -55,7 +68,7 @@ test('QA-P8-005 latches warm-up, ordinary, and superset set creation plus comple
     page.getByRole('form', { name: /Round 1 logger/ }),
   ).toBeVisible();
 
-  await skipCurrentBlock(page);
+  await finishWithoutRemaining(page);
   const save = page.getByRole('button', { name: 'Save this workout' });
   await save.evaluate((button) => {
     button.click();
@@ -71,7 +84,7 @@ test('QA-P8R-011 preserves an active lb load and converts history after a kg pre
 }) => {
   await openDemo(page);
   await page.getByRole('button', { name: 'Start workout' }).click();
-  await page.getByRole('button', { name: 'Skip' }).click();
+  await page.getByRole('button', { name: 'Skip', exact: true }).click();
   await page.getByRole('spinbutton', { name: 'Weight' }).fill('43');
   await page.getByRole('spinbutton', { name: 'Reps' }).fill('9');
   await page.getByRole('button', { name: 'Log set' }).click();
@@ -99,10 +112,7 @@ test('QA-P8R-011 preserves an active lb load and converts history after a kg pre
   );
   await expect(page.locator('.set-logger__input-wrap small')).toHaveText('lb');
 
-  await skipCurrentBlock(page);
-  while (await page.getByRole('button', { name: 'Set options' }).isVisible()) {
-    await skipCurrentBlock(page);
-  }
+  await finishWithoutRemaining(page);
   await page.getByRole('button', { name: 'Progress' }).click();
   await expect(page.getByText(/19\.5 kg × 9/)).toBeVisible();
   await expect(page.getByText(/43 kg × 9/)).toHaveCount(0);

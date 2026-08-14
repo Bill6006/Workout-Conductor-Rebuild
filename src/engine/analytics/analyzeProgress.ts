@@ -498,6 +498,9 @@ export function buildSessionSummary(
   );
   const nextTargets = session.workout.blocks
     .flatMap(blockMoves)
+    .filter(
+      (move) => !session.omittedPrescriptionIds.includes(move.prescriptionId),
+    )
     .slice(0, 3)
     .map((move) => {
       const sets = records.filter(
@@ -533,6 +536,12 @@ export function buildSessionSummary(
     musclesTrained,
     recoveryNote: `Allow roughly ${recoveryHours} hours before hard training for the slowest-recovering muscle from this session; readiness still overrides the estimate.`,
     substitutions: session.acceptedAlternativeIds.length,
+    omittedExercises: session.workout.blocks
+      .flatMap(blockMoves)
+      .filter((move) =>
+        session.omittedPrescriptionIds.includes(move.prescriptionId),
+      )
+      .map((move) => move.exerciseName),
     nextTargets,
     nextFocus: focus
       ? `${focus.name} is ${Number((focus.targetMin - focus.effectiveSets).toFixed(1))} effective sets below its planning band.`

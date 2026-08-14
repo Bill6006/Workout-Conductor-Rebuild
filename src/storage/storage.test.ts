@@ -8,8 +8,11 @@ import {
 } from '../engine/workoutGenerator/generateWorkout';
 import {
   createActiveSession,
+  deferCurrentExercise,
   logSet,
   nextSetSlot,
+  pauseSession,
+  resumeSession,
 } from '../features/activeWorkout/session';
 import { createSavedWorkout } from '../features/savedWorkouts/schema';
 import {
@@ -276,6 +279,28 @@ describe('local-first storage and data safety', () => {
         updatedAt: '2026-08-10T18:01:00.000Z',
       },
     ]);
+  });
+
+  it('persists deferred exercise state through save, reload, pause, and resume', async () => {
+    const demo = createDemoBundle();
+    const workout = generateWorkout(
+      generationInputFromBundle(demo, '15', {
+        date: '2026-08-14T18:00:00.000Z',
+      }),
+    );
+    const session = createActiveSession(workout, '2026-08-14T18:00:00.000Z');
+    const deferred = deferCurrentExercise(session, '2026-08-14T18:01:00.000Z');
+    const paused = pauseSession(deferred, '2026-08-14T18:02:00.000Z');
+    await saveActiveSessionVerified(paused);
+    const loaded = await loadActiveSession();
+    expect(loaded?.deferredPrescriptionIds).toEqual(
+      deferred.deferredPrescriptionIds,
+    );
+    const resumed = resumeSession(loaded!, '2026-08-14T18:03:00.000Z');
+    expect(resumed.deferredPrescriptionIds).toEqual(
+      deferred.deferredPrescriptionIds,
+    );
+    expect(resumed.records).toEqual([]);
   });
 
   it('migrates legacy lb sessions once without relabeling them after unit changes', async () => {

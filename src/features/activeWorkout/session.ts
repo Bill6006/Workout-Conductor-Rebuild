@@ -76,6 +76,9 @@ export function createActiveSession(
     pinnedExerciseIds: [],
     acceptedAlternativeIds: [],
     skippedBlockIds: [],
+    deferredPrescriptionIds: [],
+    omittedPrescriptionIds: [],
+    completionCelebratedAt: null,
     restTimer: null,
     lastRestStartedAt: null,
     lastRestTargetSeconds: null,
@@ -203,6 +206,11 @@ function nextSlotInBlock(
   if (session.skippedBlockIds.includes(block.blockId)) return null;
   const moves = blockMoves(block);
   if (block.kind === 'exercise') {
+    if (
+      session.deferredPrescriptionIds.includes(moves[0].prescriptionId) ||
+      session.omittedPrescriptionIds.includes(moves[0].prescriptionId)
+    )
+      return null;
     return moveSlot(
       session,
       block,
@@ -219,6 +227,11 @@ function nextSlotInBlock(
   for (let round = 0; round < block.rounds; round += 1) {
     for (let moveIndex = 0; moveIndex < moves.length; moveIndex += 1) {
       const move = moves[moveIndex];
+      if (
+        session.deferredPrescriptionIds.includes(move.prescriptionId) ||
+        session.omittedPrescriptionIds.includes(move.prescriptionId)
+      )
+        continue;
       const warmupSlot = moveSlot(
         session,
         block,
@@ -234,6 +247,11 @@ function nextSlotInBlock(
 
   for (let moveIndex = 0; moveIndex < moves.length; moveIndex += 1) {
     const move = moves[moveIndex];
+    if (
+      session.deferredPrescriptionIds.includes(move.prescriptionId) ||
+      session.omittedPrescriptionIds.includes(move.prescriptionId)
+    )
+      continue;
     if (
       move.dropSet &&
       recordsFor(session, move.prescriptionId, 'drop').length === 0
@@ -343,8 +361,8 @@ export function logSet(
   return ActiveSessionSchema.parse({
     ...candidate,
     currentBlockIndex: next?.blockIndex ?? candidate.workout.blocks.length,
-    status: next ? 'active' : 'completed',
-    completedAt: next ? null : timestamp,
+    status: 'active',
+    completedAt: null,
   });
 }
 
@@ -508,6 +526,158 @@ export function skipCurrentBlock(
   });
 }
 
+function requiredWorkingSets(block: WorkoutBlock, move: ExercisePrescription) {
+  return block.kind === 'exercise' ? move.sets : block.rounds;
+}
+
+export type WorkoutExerciseStatus =
+  'current' | 'next' | 'completed' | 'skipped' | 'omitted';
+
+export type WorkoutExerciseQueueItem = {
+  blockId: string;
+  blockIndex: number;
+  prescriptionId: string;
+  exerciseId: string;
+  exerciseName: string;
+  status: WorkoutExerciseStatus;
+};
+
+function prescriptionComplete(
+  session: ActiveSession,
+  block: WorkoutBlock,
+  move: ExercisePrescription,
+) {
+  const working = recordsFor(session, move.prescriptionId, 'working').length;
+  const dropComplete =
+    !move.dropSet ||
+    recordsFor(session, move.prescriptionId, 'drop').length > 0;
+  return working >= requiredWorkingSets(block, move) && dropComplete;
+}
+
+export function workoutExerciseQueue(
+  session: ActiveSession,
+): WorkoutExerciseQueueItem[] {
+  const currentPrescriptionId = nextSetSlot(session)?.prescriptionId ?? null;
+  return session.workout.blocks.flatMap((block, blockIndex) =>
+    blockMoves(block).map((move) => {
+      let status: WorkoutExerciseStatus = 'next';
+      if (session.omittedPrescriptionIds.includes(move.prescriptionId)) {
+        status = 'omitted';
+      } else if (
+        session.deferredPrescriptionIds.includes(move.prescriptionId)
+      ) {
+        status = 'skipped';
+      } else if (move.prescriptionId === currentPrescriptionId) {
+        status = 'current';
+      } else if (prescriptionComplete(session, block, move)) {
+        status = 'completed';
+      }
+      return {
+        blockId: block.blockId,
+        blockIndex,
+        prescriptionId: move.prescriptionId,
+        exerciseId: move.exerciseId,
+        exerciseName: move.exerciseName,
+        status,
+      };
+    }),
+  );
+}
+
+export function unfinishedExercises(session: ActiveSession) {
+  return workoutExerciseQueue(session).filter(
+    (item) =>
+      item.status === 'next' ||
+      item.status === 'skipped' ||
+      item.status === 'current',
+  );
+}
+
+export function deferCurrentExercise(
+  session: ActiveSession,
+  now: Date | string = new Date(),
+): ActiveSession {
+  if (session.status !== 'active') return session;
+  const slot = nextSetSlot(session);
+  if (!slot) return session;
+  const timestamp = sessionTimestamp(now);
+  const candidate = ActiveSessionSchema.parse({
+    ...session,
+    deferredPrescriptionIds: Array.from(
+      new Set([...session.deferredPrescriptionIds, slot.prescriptionId]),
+    ),
+    restTimer: null,
+    updatedAt: timestamp,
+  });
+  const next = nextSetSlot(candidate);
+  return ActiveSessionSchema.parse({
+    ...candidate,
+    currentBlockIndex: next?.blockIndex ?? candidate.workout.blocks.length,
+  });
+}
+
+export function returnToExercise(
+  session: ActiveSession,
+  prescriptionId: string,
+  now: Date | string = new Date(),
+): ActiveSession {
+  if (
+    session.status !== 'active' ||
+    !session.deferredPrescriptionIds.includes(prescriptionId)
+  )
+    return session;
+  const item = workoutExerciseQueue(session).find(
+    (candidate) => candidate.prescriptionId === prescriptionId,
+  );
+  if (!item) return session;
+  const timestamp = sessionTimestamp(now);
+  return ActiveSessionSchema.parse({
+    ...session,
+    deferredPrescriptionIds: session.deferredPrescriptionIds.filter(
+      (id) => id !== prescriptionId,
+    ),
+    currentBlockIndex: item.blockIndex,
+    restTimer: null,
+    updatedAt: timestamp,
+  });
+}
+
+export function finishSession(
+  session: ActiveSession,
+  omitUnfinished: boolean,
+  now: Date | string = new Date(),
+): ActiveSession {
+  if (session.status !== 'active') return session;
+  const unfinished = unfinishedExercises(session);
+  if (unfinished.length > 0 && !omitUnfinished) {
+    throw new Error(
+      'Unfinished exercises require confirmation before finishing.',
+    );
+  }
+  const timestamp = sessionTimestamp(now);
+  const omitted = omitUnfinished
+    ? Array.from(
+        new Set([
+          ...session.omittedPrescriptionIds,
+          ...unfinished.map((item) => item.prescriptionId),
+        ]),
+      )
+    : session.omittedPrescriptionIds;
+  return ActiveSessionSchema.parse({
+    ...session,
+    status: 'completed',
+    completedAt: timestamp,
+    currentBlockIndex: session.workout.blocks.length,
+    deferredPrescriptionIds: session.deferredPrescriptionIds.filter(
+      (id) => !omitted.includes(id),
+    ),
+    omittedPrescriptionIds: omitted,
+    completionCelebratedAt: timestamp,
+    restTimer: null,
+    updatedAt: timestamp,
+  });
+}
+
 export function elapsedSessionSeconds(
   session: ActiveSession,
   now: Date | string = new Date(),
@@ -537,5 +707,6 @@ export function workoutCompletion(session: ActiveSession) {
       0,
     ),
     skippedBlocks: session.skippedBlockIds.length,
+    omittedExercises: session.omittedPrescriptionIds.length,
   };
 }

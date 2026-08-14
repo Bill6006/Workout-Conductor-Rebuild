@@ -10,17 +10,21 @@ import { ActiveSessionSchema } from './schema';
 import {
   blockMoves,
   createActiveSession,
+  deferCurrentExercise,
   editSet,
   elapsedSessionSeconds,
+  finishSession,
   initialSetValues,
   logSet,
   nextSetSlot,
   pauseSession,
+  returnToExercise,
   resumeSession,
   setWarmupChoice,
   skipCurrentBlock,
   undoLastSet,
   workoutCompletion,
+  workoutExerciseQueue,
 } from './session';
 
 const startedAt = '2026-08-10T18:00:00.000Z';
@@ -253,14 +257,14 @@ describe('Phase 5 durable active workout session', () => {
     expect(block.canonicalRow).toContain(' + ');
   });
 
-  it('finishes directly after the final superset move without an extra draft', () => {
+  it('waits for one explicit finish after the final superset move', () => {
     const workout = generated();
     const superset = workout.blocks.find((block) => block.kind === 'superset')!;
     let session = createActiveSession(
       { ...workout, blocks: [superset] },
       startedAt,
     );
-    for (let index = 0; index < 20 && session.status === 'active'; index += 1) {
+    for (let index = 0; index < 20 && nextSetSlot(session); index += 1) {
       const slot = nextSetSlot(session);
       expect(slot).not.toBeNull();
       session = logSet(
@@ -270,9 +274,99 @@ describe('Phase 5 durable active workout session', () => {
         new Date(new Date(startedAt).getTime() + index * 1000),
       );
     }
-    expect(session.status).toBe('completed');
+    expect(session.status).toBe('active');
     expect(nextSetSlot(session)).toBeNull();
     expect(session.records).toHaveLength(superset.rounds * 2);
+    session = finishSession(session, false, '2026-08-10T18:10:00.000Z');
+    expect(session.status).toBe('completed');
+    expect(session.completionCelebratedAt).toBe('2026-08-10T18:10:00.000Z');
+  });
+
+  it('persists skip-for-now and returns without changing completed records', () => {
+    const firstLogged = logged();
+    const current = nextSetSlot(firstLogged)!;
+    const deferred = deferCurrentExercise(
+      firstLogged,
+      '2026-08-10T18:03:00.000Z',
+    );
+    expect(deferred.records).toEqual(firstLogged.records);
+    expect(deferred.deferredPrescriptionIds).toContain(current.prescriptionId);
+    expect(
+      workoutExerciseQueue(deferred).find(
+        (item) => item.prescriptionId === current.prescriptionId,
+      )?.status,
+    ).toBe('skipped');
+
+    const reloaded = ActiveSessionSchema.parse(structuredClone(deferred));
+    const returned = returnToExercise(
+      reloaded,
+      current.prescriptionId,
+      '2026-08-10T18:04:00.000Z',
+    );
+    expect(returned.records).toEqual(firstLogged.records);
+    expect(returned.deferredPrescriptionIds).not.toContain(
+      current.prescriptionId,
+    );
+    expect(nextSetSlot(returned)?.prescriptionId).toBe(current.prescriptionId);
+  });
+
+  it('defers one superset or circuit move while its partners remain runnable', () => {
+    const workout = generated();
+    const grouped = workout.blocks.find(
+      (block) => block.kind === 'superset' || block.kind === 'circuit',
+    )!;
+    let session = createActiveSession(
+      { ...workout, blocks: [grouped] },
+      startedAt,
+    );
+    const first = nextSetSlot(session)!;
+    session = deferCurrentExercise(session, '2026-08-10T18:01:00.000Z');
+    const partner = nextSetSlot(session)!;
+    expect(partner.blockId).toBe(first.blockId);
+    expect(partner.prescriptionId).not.toBe(first.prescriptionId);
+    session = logSet(session, partner, { weight: 25, reps: 10, rir: 2 });
+    const returned = returnToExercise(session, first.prescriptionId);
+    expect(nextSetSlot(returned)?.prescriptionId).toBe(first.prescriptionId);
+    expect(returned.records).toEqual(session.records);
+  });
+
+  it('requires confirmation, records intentional omissions, and is idempotent under rapid deferral', () => {
+    const session = createActiveSession(generated(), startedAt);
+    const first = nextSetSlot(session)!;
+    const once = deferCurrentExercise(session, '2026-08-10T18:01:00.000Z');
+    const replay = deferCurrentExercise(session, '2026-08-10T18:01:00.000Z');
+    expect(once.deferredPrescriptionIds).toEqual(
+      replay.deferredPrescriptionIds,
+    );
+
+    let deferred = once;
+    while (nextSetSlot(deferred)) {
+      deferred = deferCurrentExercise(deferred, '2026-08-10T18:02:00.000Z');
+    }
+    expect(() => finishSession(deferred, false)).toThrow(
+      'require confirmation',
+    );
+    const finished = finishSession(deferred, true, '2026-08-10T18:05:00.000Z');
+    expect(finished.status).toBe('completed');
+    expect(finished.omittedPrescriptionIds).toContain(first.prescriptionId);
+    expect(finished.deferredPrescriptionIds).toEqual([]);
+    expect(workoutCompletion(finished)).toMatchObject({
+      completedSets: 0,
+      exercises: 0,
+      volume: 0,
+      omittedExercises: workoutExerciseQueue(finished).length,
+    });
+  });
+
+  it('keeps deferred work through pause and resume', () => {
+    const session = createActiveSession(generated(), startedAt);
+    const deferred = deferCurrentExercise(session);
+    const paused = pauseSession(deferred, '2026-08-10T18:03:00.000Z');
+    const resumed = resumeSession(paused, '2026-08-10T18:04:00.000Z');
+    expect(resumed.deferredPrescriptionIds).toEqual(
+      deferred.deferredPrescriptionIds,
+    );
+    expect(resumed.records).toEqual([]);
   });
 
   it('pauses and resumes at the same position while excluding paused time', () => {
