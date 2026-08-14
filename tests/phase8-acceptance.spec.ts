@@ -5,7 +5,7 @@ async function openDemo(page: Page) {
   await page
     .getByRole('button', { name: 'Explore with a synthetic demo profile' })
     .click();
-  await expect(page.getByText('WC-P8UXR3-0814')).toBeVisible();
+  await expect(page.getByText('WC-P8UXR4-0814')).toBeVisible();
 }
 
 test('exports every protected store, previews exact restore, verifies it, and rolls it back', async ({
@@ -144,10 +144,12 @@ test('meets the final semantic, keyboard, reduced-motion, and touch-target check
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.getByRole('button', { name: 'Start workout' }).click();
   await page.getByRole('button', { name: /Open demonstration for/ }).click();
-  const animation = await page
-    .locator('.guide-stage i')
-    .evaluate((item) => getComputedStyle(item).animationName);
-  expect(animation).toBe('none');
+  const guide = page.getByRole('dialog');
+  await expect(guide.getByText('Tempo overview')).toBeVisible();
+  await expect(guide.locator('.tempo-indicator__fill')).toHaveCSS(
+    'display',
+    'none',
+  );
 });
 
 test('installs a controlled service worker and reloads the app shell offline', async ({
@@ -175,7 +177,7 @@ test('installs a controlled service worker and reloads the app shell offline', a
     await navigator.serviceWorker.ready;
   });
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await expect(page.getByText('WC-P8UXR3-0814')).toBeVisible();
+  await expect(page.getByText('WC-P8UXR4-0814')).toBeVisible();
   expect(
     await page.evaluate(() => Boolean(navigator.serviceWorker.controller)),
   ).toBe(true);
@@ -183,7 +185,7 @@ test('installs a controlled service worker and reloads the app shell offline', a
   await context.setOffline(true);
   try {
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await expect(page.getByText('WC-P8UXR3-0814')).toBeVisible();
+    await expect(page.getByText('WC-P8UXR4-0814')).toBeVisible();
   } finally {
     await context.setOffline(false);
   }

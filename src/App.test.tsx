@@ -204,7 +204,7 @@ describe('Phase 8 final acceptance', () => {
     await openSyntheticDemo();
 
     expect(screen.getByText('Phase 8 UX enhancement')).toBeInTheDocument();
-    expect(screen.getByText('WC-P8UXR3-0814')).toBeInTheDocument();
+    expect(screen.getByText('WC-P8UXR4-0814')).toBeInTheDocument();
     expect(screen.getByText('Adaptive Coach')).toBeInTheDocument();
     expect(screen.getByText('Generated locally')).toBeInTheDocument();
     const duration = screen.getByRole('combobox', { name: 'Workout length' });
@@ -388,7 +388,7 @@ describe('Phase 8 final acceptance', () => {
   it('starts a premium active workout and logs a one-tap prefilled set', async () => {
     await startActiveWorkout();
     expect(screen.getByText('Active workout')).toBeInTheDocument();
-    expect(screen.getByText('WC-P8UXR3-0814')).toBeInTheDocument();
+    expect(screen.getByText('WC-P8UXR4-0814')).toBeInTheDocument();
     expect(screen.getByRole('spinbutton', { name: 'Weight' })).toHaveValue(40);
     expect(screen.getByRole('spinbutton', { name: 'Reps' })).toHaveValue(8);
     expect(screen.getByRole('spinbutton', { name: 'RIR' })).toHaveValue(2);

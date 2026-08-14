@@ -83,7 +83,7 @@ async function openActiveWorkout(page: Page) {
   await page
     .getByRole('button', { name: 'Explore with a synthetic demo profile' })
     .click();
-  await expect(page.getByText('WC-P8UXR3-0814')).toBeVisible();
+  await expect(page.getByText('WC-P8UXR4-0814')).toBeVisible();
   await page
     .getByRole('combobox', { name: 'Workout length' })
     .selectOption('15');
@@ -104,7 +104,7 @@ test('P8-RT-001 migrates original profile data and preserves the exact active sl
 }) => {
   await seedOriginalDatabase(page);
   await page.goto('./', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByText('WC-P8UXR3-0814')).toBeVisible();
+  await expect(page.getByText('WC-P8UXR4-0814')).toBeVisible();
   await expect(
     page.getByRole('heading', { name: 'Ready, Athlete.' }),
   ).toBeVisible();
@@ -313,7 +313,7 @@ test('P8-RT-004 exports and restores a complete backup containing original and m
 }) => {
   await seedOriginalDatabase(page);
   await page.goto('./', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByText('WC-P8UXR3-0814')).toBeVisible();
+  await expect(page.getByText('WC-P8UXR4-0814')).toBeVisible();
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.getByText('Backup & diagnostics').click();
 

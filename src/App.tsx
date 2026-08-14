@@ -290,7 +290,7 @@ export default function App() {
         </div>
         <span className="loading-pulse" />
         <p>Opening your private training space…</p>
-        <small>WC-P8UXR3-0814</small>
+        <small>WC-P8UXR4-0814</small>
       </div>
     );
   }
@@ -311,7 +311,7 @@ export default function App() {
         <button type="button" onClick={() => window.location.reload()}>
           Retry protected storage
         </button>
-        <small>WC-P8UXR3-0814</small>
+        <small>WC-P8UXR4-0814</small>
       </main>
     );
   }

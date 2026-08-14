@@ -3253,31 +3253,78 @@
   object-fit: cover;
 }
 
-.guide-frame i,
-.guide-stage i {
+.tempo-indicator--compact {
   position: absolute;
   inset: auto 12% 8px;
-  height: 3px;
+  z-index: 2;
+}
+
+.tempo-indicator__track {
+  overflow: hidden;
+  height: 4px;
   border-radius: 99px;
+  background: rgba(190, 255, 45, 0.2);
+}
+
+.tempo-indicator__fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
   background: var(--accent);
   box-shadow: 0 0 12px rgba(190, 255, 45, 0.8);
   transform-origin: left;
+  will-change: transform;
 }
 
-.guide-frame.is-playing i,
-.guide-stage.is-playing i {
-  animation: guide-tempo var(--tempo-duration, 4s) linear infinite;
+.tempo-indicator:not(.tempo-indicator--compact) {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 9px 11px;
+  border: 1px solid rgba(190, 255, 45, 0.22);
+  border-radius: 12px;
+  background: rgba(190, 255, 45, 0.06);
 }
 
-@keyframes guide-tempo {
-  from {
-    transform: scaleX(0);
-    opacity: 0.5;
-  }
-  to {
-    transform: scaleX(1);
-    opacity: 1;
-  }
+.tempo-indicator__heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text);
+  font-size: 0.68rem;
+}
+
+.tempo-indicator__heading strong {
+  color: var(--accent);
+}
+
+.tempo-indicator__heading span {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.tempo-indicator__summary {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.62rem;
+  line-height: 1.4;
+}
+
+.tempo-indicator.is-reduced-motion .tempo-indicator__track {
+  background: linear-gradient(
+    90deg,
+    var(--accent) 0 25%,
+    rgba(190, 255, 45, 0.28) 25% 50%,
+    var(--accent) 50% 75%,
+    rgba(190, 255, 45, 0.28) 75% 100%
+  );
+}
+
+.tempo-indicator.is-reduced-motion .tempo-indicator__fill {
+  display: none;
 }
 
 .custom-exercise-chip {
@@ -3951,11 +3998,12 @@
 
 .guide-media-actions {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
-.guide-swap-button {
+.guide-swap-button,
+.guide-remove-button {
   min-height: 44px;
   margin-top: 8px;
   padding: 0 14px;
@@ -3966,6 +4014,14 @@
   font: inherit;
   font-size: 0.72rem;
   font-weight: 850;
+}
+
+.guide-remove-button {
+  grid-column: 1 / -1;
+  margin-top: 0;
+  border-color: var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
 }
 
 .guide-media-status {
@@ -4258,9 +4314,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .guide-frame.is-playing i,
-  .guide-stage.is-playing i {
-    animation: none;
+  .tempo-indicator__fill {
+    transition: none;
   }
 }
 

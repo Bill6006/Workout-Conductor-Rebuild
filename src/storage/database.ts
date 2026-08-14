@@ -194,6 +194,27 @@ async function performVerifiedWrite<T extends { id: string }>(
   return verified;
 }
 
+async function performVerifiedDelete(
+  storeName: StoreName,
+  id: string,
+): Promise<void> {
+  const database = await openDatabase();
+  const writeTransaction = database.transaction(storeName, 'readwrite');
+  writeTransaction.objectStore(storeName).delete(id);
+  await transactionComplete(writeTransaction);
+
+  const verifyTransaction = database.transaction(storeName, 'readonly');
+  const verifiedComplete = transactionComplete(verifyTransaction);
+  const stored = await requestResult(
+    verifyTransaction.objectStore(storeName).get(id),
+  );
+  await verifiedComplete;
+  if (stored !== undefined) {
+    throw new Error(`Local delete verification failed for ${storeName}/${id}.`);
+  }
+  lastVerifiedAt = new Date().toISOString();
+}
+
 export async function waitForPendingWrites(): Promise<void> {
   while (pendingWrites.size > 0) {
     await Promise.allSettled(Array.from(pendingWrites));
@@ -511,6 +532,16 @@ export async function saveCustomMediaVerified(
 
 export async function loadCustomMedia(): Promise<CustomMediaBlob[]> {
   return getAllRecords(storeNames.customMedia, CustomMediaBlobSchema);
+}
+
+export async function removeCustomMediaVerified(id: string): Promise<void> {
+  const operation = performVerifiedDelete(storeNames.customMedia, id);
+  pendingWrites.add(operation);
+  void operation.then(
+    () => pendingWrites.delete(operation),
+    () => pendingWrites.delete(operation),
+  );
+  return operation;
 }
 
 export async function saveCoachTargetVerified(

@@ -1,21 +1,26 @@
-import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Exercise } from '../catalog/schema';
 import { mediaById } from '../catalog/mediaManifest';
 import { muscleById } from '../catalog/muscles';
 import { recommendTempo } from '../features/activeWorkout/tempo';
-import { loadCustomMedia, saveCustomMediaVerified } from '../storage/database';
+import {
+  loadCustomMedia,
+  removeCustomMediaVerified,
+  saveCustomMediaVerified,
+} from '../storage/database';
 import type { CustomMediaBlob } from '../storage/userContent';
+import { TempoIndicator } from './TempoIndicator';
+import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 
 function assetPath(path: string) {
   return `${import.meta.env.BASE_URL}${path.replace(/^\//, '')}`;
 }
 
 export function ExerciseGuide({ exercise }: { exercise: Exercise }) {
+  const reducedMotion = usePrefersReducedMotion();
   const [open, setOpen] = useState(false);
-  const [playing, setPlaying] = useState(
-    () => !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
-  );
+  const [playing, setPlaying] = useState(() => !reducedMotion);
   const [customMedia, setCustomMedia] = useState<CustomMediaBlob | null>(null);
   const [mediaStatus, setMediaStatus] = useState('');
   const openerRef = useRef<HTMLButtonElement>(null);
@@ -25,6 +30,7 @@ export function ExerciseGuide({ exercise }: { exercise: Exercise }) {
   const titleId = useId();
   const media = mediaById.get(exercise.mediaId);
   const tempo = recommendTempo(exercise);
+  const guidePlaying = playing && !reducedMotion;
 
   useEffect(() => {
     let active = true;
@@ -103,10 +109,6 @@ export function ExerciseGuide({ exercise }: { exercise: Exercise }) {
   const demonstrationPath = media.demonstrationPath ?? media.posterPath;
   const demonstrationSource =
     customMedia?.dataUrl ?? assetPath(demonstrationPath);
-  const tempoStyle = {
-    '--tempo-duration': `${tempo.cycleSeconds}s`,
-  } as CSSProperties;
-
   async function handleGifUpload(file: File | undefined) {
     if (!file) return;
     if (file.type !== 'image/gif') {
@@ -152,6 +154,21 @@ export function ExerciseGuide({ exercise }: { exercise: Exercise }) {
     }
   }
 
+  async function handleGifRemoval() {
+    if (!customMedia) return;
+    try {
+      await removeCustomMediaVerified(customMedia.id);
+      setCustomMedia(null);
+      setMediaStatus(
+        'Custom GIF removed and verified. The packaged movement guide is active again.',
+      );
+    } catch {
+      setMediaStatus(
+        'The custom GIF could not be removed. Your existing guide was kept.',
+      );
+    }
+  }
+
   return (
     <>
       <button
@@ -162,17 +179,18 @@ export function ExerciseGuide({ exercise }: { exercise: Exercise }) {
         onClick={() => setOpen(true)}
       >
         <span
-          className={playing ? 'guide-frame is-playing' : 'guide-frame'}
-          style={tempoStyle}
+          className={guidePlaying ? 'guide-frame is-playing' : 'guide-frame'}
         >
           <img
-            src={playing ? demonstrationSource : assetPath(media.posterPath)}
+            src={
+              guidePlaying ? demonstrationSource : assetPath(media.posterPath)
+            }
             alt=""
             width="92"
             height="70"
             loading="eager"
           />
-          <i aria-hidden="true" />
+          <TempoIndicator tempo={tempo} playing={guidePlaying} compact />
         </span>
         <span>
           <strong>Movement guide</strong>
@@ -211,27 +229,28 @@ export function ExerciseGuide({ exercise }: { exercise: Exercise }) {
                 </button>
               </div>
               <div
-                className={playing ? 'guide-stage is-playing' : 'guide-stage'}
-                style={tempoStyle}
+                className={
+                  guidePlaying ? 'guide-stage is-playing' : 'guide-stage'
+                }
               >
                 <img
                   src={
-                    playing
+                    guidePlaying
                       ? demonstrationSource
                       : assetPath(media.reducedMotionPosterPath)
                   }
                   alt={`${exercise.name} movement guide`}
                 />
-                <i aria-hidden="true" />
               </div>
+              <TempoIndicator tempo={tempo} playing={guidePlaying} />
               <div className="guide-media-actions">
                 <button
                   className="guide-play-button"
                   type="button"
-                  aria-pressed={playing}
-                  onClick={() => setPlaying(!playing)}
+                  aria-pressed={guidePlaying}
+                  onClick={() => setPlaying(!guidePlaying)}
                 >
-                  {playing ? 'Pause guide' : 'Play guide'}
+                  {guidePlaying ? 'Pause guide' : 'Play guide'}
                 </button>
                 <button
                   className="guide-swap-button"
@@ -240,6 +259,15 @@ export function ExerciseGuide({ exercise }: { exercise: Exercise }) {
                 >
                   {customMedia ? 'Swap GIF' : 'Use my GIF'}
                 </button>
+                {customMedia && (
+                  <button
+                    className="guide-remove-button"
+                    type="button"
+                    onClick={() => void handleGifRemoval()}
+                  >
+                    Use packaged guide
+                  </button>
+                )}
                 <input
                   ref={fileInputRef}
                   className="visually-hidden"

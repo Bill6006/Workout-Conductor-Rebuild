@@ -1237,7 +1237,7 @@ export function ActiveWorkoutView({
           <span className="status-pill">
             <span /> Phase 8 UX enhancement
           </span>
-          <span className="build-label">WC-P8UXR3-0814</span>
+          <span className="build-label">WC-P8UXR4-0814</span>
         </div>
         <WorkoutNavigator
           canAct={false}
@@ -1391,7 +1391,7 @@ export function ActiveWorkoutView({
         <span className="status-pill">
           <span /> Phase 8 UX enhancement
         </span>
-        <span className="build-label">WC-P8UXR3-0814</span>
+        <span className="build-label">WC-P8UXR4-0814</span>
       </div>
 
       <WorkoutNavigator

@@ -14,6 +14,12 @@ function renderLogger(onSubmit = vi.fn()) {
         code: '3–0–1–0',
         cue: '3 sec lower · no pause · 1 sec lift · smooth turnaround',
         cycleSeconds: 4,
+        phases: {
+          eccentric: 3,
+          bottomPause: 0,
+          concentric: 1,
+          topPause: 0,
+        },
         evidenceNote: 'Evidence-informed starting point.',
       }}
       units="kg"

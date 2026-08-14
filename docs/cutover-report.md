@@ -2,11 +2,11 @@
 
 Status: **YELLOW — implementation complete; awaiting Android review**
 
-Release: `0.8.7`
+Release: `0.8.8`
 
-Build marker: `WC-P8UXR3-0814`
+Build marker: `WC-P8UXR4-0814`
 
-Enhancement status: active workouts retain durable navigation and completion safety. This repair non-destructively migrates the original app's same-origin profile, restores exact modal focus, places grouped final drops after all rounds, and restores complete-backup compatibility when original and migrated profiles coexist. See the [Phase 8 UX enhancement report](phase-reports/PHASE_8_UX_ENHANCEMENT.md). Final approval remains withheld pending a separate adversarial retest and required physical-device/runtime gates.
+Enhancement status: active workouts retain durable navigation and completion safety. This repair keeps the prescribed four-part tempo indicator visible with packaged or custom GIF media and makes each drain, hold, refill, and restart phase duration exact. See the [tempo-guide repair report](phase-reports/PHASE_8_TEMPO_GUIDE_REPAIR.md). Final approval remains withheld pending a separate adversarial retest.
 
 ## Release scope
 
@@ -30,7 +30,7 @@ Enhancement status: active workouts retain durable navigation and completion saf
 - focused Note and Plate Math sheets with redundant lower-page navigation removed
 - deterministic persisted `Skip set` state with no synthetic analytics records
 - verified per-exercise GIF overrides in protected custom media
-- shared evidence-informed tempo recommendations and tempo-synchronized guide progress
+- shared evidence-informed tempo recommendations and phase-accurate guide progress for packaged, uploaded, replaced, and removed GIF media
 - original same-origin out-of-line profile migration with raw-record preservation, actionable unsupported-schema recovery, and active-position continuity
 - exact focus restoration to mouse, touch, and keyboard modal launchers with a safe fallback
 - post-round final drop ordering for supersets and circuits, including skip, defer, reload, pause/resume, and rapid activation
@@ -42,11 +42,11 @@ No backend, authentication, telemetry, remote media dependency, or real user rec
 
 ## Verification
 
-The local release matrix passed: 162/162 unit and integration tests, 25/25 Android Chromium scenarios, lint, TypeScript, formatting, privacy scanning, production build, and built-asset/PWA verification. Browser coverage includes original-origin migration and reload, exact focus return, grouped final-drop ordering, complete export/restore, rollback, malformed/tampered rejection, true offline reload, semantic and keyboard operation, touch targets, responsive widths, rapid activation, durable exercise and set skips, explicit finish consent, GIF upload/reload, tempo synchronization, and reduced motion. The deployed commit is recorded in [PROJECT_STATUS.md](../PROJECT_STATUS.md). The acceptance contracts are documented in [data-safety.md](data-safety.md) and [pwa-and-accessibility.md](pwa-and-accessibility.md).
+The local release matrix passes the complete unit, integration, Android Chromium, lint, TypeScript, formatting, privacy, production-build, and PWA checks. Browser coverage includes original-origin migration and reload, exact focus return, grouped final-drop ordering, complete export/restore, rollback, malformed/tampered rejection, true offline reload, semantic and keyboard operation, touch targets, responsive widths, rapid activation, durable exercise and set skips, explicit finish consent, GIF upload/reload/removal, exact tempo phases, timer cleanup, and reduced motion. Final counts and the deployed identity are recorded in [PROJECT_STATUS.md](../PROJECT_STATUS.md).
 
 ## Android review
 
-The remaining gates are an independent adversarial retest plus hands-on review on the user's Android device: install or refresh the PWA, confirm `WC-P8UXR3-0814`, perform a true deployed-origin offline reload and restore-file flow, exercise all shortcuts and Catalog with a physical keyboard, verify runtime reduced-motion completion, upload a real GIF through Android file selection, and inspect software-keyboard, browser chrome, text-scaling, orientation, and safe-area behavior. Automated exact-build equivalents pass but are not represented as substitutes for these manual gates. No Phase 9 is defined.
+The user manually passed deployed valid backup/restore, true offline reload, real Android GIF selection and persistence, portrait/landscape behavior, the Android software keyboard, text scaling, and runtime reduced motion on the preceding release. The custom-GIF tempo indicator reported during that review is repaired here and requires independent deployed retesting. Malformed/tampered restore rejection and physical-keyboard operation remain manual gates unless genuinely exercised. No Phase 9 is defined.
 
 ## Evidence
 

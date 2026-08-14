@@ -5,7 +5,7 @@ async function openActiveWorkout(page: Page) {
   await page
     .getByRole('button', { name: 'Explore with a synthetic demo profile' })
     .click();
-  await expect(page.getByText('WC-P8UXR3-0814')).toBeVisible();
+  await expect(page.getByText('WC-P8UXR4-0814')).toBeVisible();
   await page
     .getByRole('combobox', { name: 'Workout length' })
     .selectOption('15');
@@ -316,9 +316,49 @@ test('utility sheets, one-set skip, tempo guide, and persistent GIF replace the 
     'src',
     /^data:image\/gif/,
   );
-  await expect(guide.locator('.guide-stage i')).toHaveCSS(
-    'animation-duration',
-    '4s',
+  const tempoIndicator = guide.getByRole('group', {
+    name: /Tempo \d–\d–\d–\d.*Lower/,
+  });
+  const tempoProgress = guide.getByRole('progressbar', {
+    name: 'Movement tempo phase',
+  });
+  await expect(tempoIndicator).toBeVisible();
+  await expect(tempoProgress).toBeVisible();
+  expect(
+    await guide.evaluate((element) => {
+      const media = element.querySelector('.guide-stage');
+      const tempo = element.querySelector('.tempo-indicator');
+      return Boolean(
+        media &&
+        tempo &&
+        media.compareDocumentPosition(tempo) & Node.DOCUMENT_POSITION_FOLLOWING,
+      );
+    }),
+  ).toBe(true);
+  await expect(tempoProgress).toHaveAttribute(
+    'data-phase',
+    /eccentric|bottomPause|concentric|topPause/,
+  );
+
+  await guide.getByRole('button', { name: 'Pause guide' }).click();
+  const pausedTransform = await tempoProgress
+    .locator('.tempo-indicator__fill')
+    .evaluate((element) => (element as HTMLElement).style.transform);
+  await page.waitForTimeout(200);
+  await expect(tempoProgress.locator('.tempo-indicator__fill')).toHaveAttribute(
+    'style',
+    new RegExp(pausedTransform.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+  );
+  await guide.getByRole('button', { name: 'Play guide' }).click();
+  const firstGif = await guide.locator('.guide-stage img').getAttribute('src');
+  await guide.getByLabel(/Upload a custom GIF for/).setInputFiles({
+    name: 'my-replacement.gif',
+    mimeType: 'image/gif',
+    buffer: Buffer.from('GIF89a-replacement'),
+  });
+  await expect(guide.locator('.guide-stage img')).not.toHaveAttribute(
+    'src',
+    firstGif!,
   );
   await guide.getByRole('button', { name: 'Close' }).click();
 
@@ -328,4 +368,44 @@ test('utility sheets, one-set skip, tempo guide, and persistent GIF replace the 
   await expect(
     page.getByRole('dialog').locator('.guide-stage img'),
   ).toHaveAttribute('src', /^data:image\/gif/);
+  await expect(
+    page.getByRole('dialog').getByRole('progressbar', {
+      name: 'Movement tempo phase',
+    }),
+  ).toBeVisible();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: 'Use packaged guide' })
+    .click();
+  await expect(
+    page.getByRole('dialog').getByText(/Custom GIF removed and verified/),
+  ).toBeVisible();
+  await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: 'Workout', exact: true }).click();
+  await page.getByRole('button', { name: /Open demonstration for/ }).click();
+  await expect(
+    page.getByRole('dialog').locator('.guide-stage img'),
+  ).not.toHaveAttribute('src', /^data:image\/gif/);
+});
+
+test('custom media keeps a nonanimated four-phase tempo overview in reduced-motion mode', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await openActiveWorkout(page);
+  await page.getByRole('button', { name: /Open demonstration for/ }).click();
+  const guide = page.getByRole('dialog', { name: /.+/ });
+  await guide.getByLabel(/Upload a custom GIF for/).setInputFiles({
+    name: 'reduced-motion.gif',
+    mimeType: 'image/gif',
+    buffer: Buffer.from('GIF89a'),
+  });
+  await expect(guide.getByText('Tempo overview')).toBeVisible();
+  await expect(guide.getByText(/Lower \d sec · Hold low \d sec/)).toBeVisible();
+  await expect(guide.locator('.tempo-indicator__fill')).toHaveCSS(
+    'display',
+    'none',
+  );
+  await expect(guide.getByRole('button', { name: 'Play guide' })).toBeVisible();
 });

@@ -2,11 +2,11 @@
 
 Status: **YELLOW — awaiting Android review**
 
-Build marker: `WC-P8UXR3-0814`
+Build marker: `WC-P8UXR4-0814`
 
 Phase 8 completes the planned application. It adds exact and reversible local-data recovery, production offline media coverage, safe service-worker updates, final accessibility and zoom acceptance, and release evidence. The detailed release record is the [Phase 8 cutover report](../cutover-report.md).
 
-The `0.8.7` repair preserves the active-workout UX and all safety gates while adding non-destructive migration for the original same-origin profile record, exact modal focus return, final-drop ordering after grouped rounds, and complete-backup compatibility for original plus migrated profiles. Evidence is in the [active-workout navigation enhancement report](PHASE_8_UX_ENHANCEMENT.md); the phase remains YELLOW pending another independent retest and the outstanding physical-device/runtime gates.
+The `0.8.8` repair preserves the active-workout UX and all safety gates while making the movement-guide indicator follow the prescribed eccentric, bottom-pause, concentric, and top-pause durations for both packaged and user-selected GIF media. Evidence is in the [tempo-guide repair report](PHASE_8_TEMPO_GUIDE_REPAIR.md); the phase remains YELLOW pending another independent retest.
 
 ## Acceptance summary
 
@@ -26,6 +26,7 @@ The `0.8.7` repair preserves the active-workout UX and all safety gates while ad
 - `Skip set` persists one exact omitted slot without generating analytics evidence
 - user GIF exercise guides survive reload and protected backup/restore until replaced
 - evidence-informed tempo guidance is shared between set targets and media progress
+- packaged and custom-GIF guides retain a phase-labeled indicator that drains, holds, refills, and restarts according to the four-part tempo, with a nonanimated reduced-motion overview
 - original same-origin profile records migrate forward without deletion or onboarding fallback and active sessions retain their exact slot across reload
 - every active-workout modal restores its exact launcher after Escape, Close, or supported backdrop dismissal
 - final drop work follows every prescribed superset/circuit round, including deferred and reloaded flows

@@ -49,7 +49,7 @@ export function PlaceholderView({ tab }: PlaceholderViewProps) {
       </section>
       <section className="build-card">
         <p className="eyebrow">Current visible build</p>
-        <strong>WC-P8UXR3-0814</strong>
+        <strong>WC-P8UXR4-0814</strong>
         <span>Phase 8 · Data safety, offline readiness, and acceptance</span>
       </section>
     </>

@@ -11,7 +11,7 @@ The generated manifest includes the application name, short name, standalone dis
 - Form fields, buttons, navigation, disclosure controls, and dialogs have accessible names.
 - Interactive targets used in primary flows are at least 44 by 44 CSS pixels.
 - Focus-visible styling covers links, buttons, inputs, selects, textareas, summaries, and other focusable controls.
-- Reduced-motion preferences disable decorative guide animation.
+- Reduced-motion preferences disable continuous guide progress and replace it with a labeled four-phase tempo overview containing every duration.
 - Exercise images carry meaningful alternative text.
 - Exercise-guide dialogs move focus inside, contain keyboard focus, close with Escape, make the application background inert, and restore focus to their opener.
 - The mobile layout is checked at 360, 375, 412, and 430 CSS pixels, plus effective widths of 240 pixels at 150% zoom and 180 pixels at 200% zoom, without horizontal overflow.

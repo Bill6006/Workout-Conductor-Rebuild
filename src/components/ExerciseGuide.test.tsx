@@ -56,6 +56,10 @@ describe('Phase 8 exercise-guide accessibility', () => {
     expect(
       screen.getByRole('button', { name: 'Swap GIF' }),
     ).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: /Tempo 3–0–1–0/ })).toBeVisible();
+    expect(
+      screen.getByRole('progressbar', { name: 'Movement tempo phase' }),
+    ).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     first.unmount();
 
@@ -99,5 +103,52 @@ describe('Phase 8 exercise-guide accessibility', () => {
     expect(
       screen.getByRole('button', { name: 'Use my GIF' }),
     ).toBeInTheDocument();
+  });
+
+  it('removes a custom GIF with verified persistence while retaining tempo guidance', async () => {
+    const exercise = exerciseById.get('dumbbell-bench-press')!;
+    const first = render(
+      <div id="root">
+        <ExerciseGuide exercise={exercise} />
+      </div>,
+    );
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: `Open demonstration for ${exercise.name}`,
+      }),
+    );
+    fireEvent.change(
+      screen.getByLabelText(`Upload a custom GIF for ${exercise.name}`),
+      {
+        target: {
+          files: [new File(['GIF89a'], 'bench.gif', { type: 'image/gif' })],
+        },
+      },
+    );
+    await screen.findByText(/Custom GIF saved and verified locally/);
+    fireEvent.click(screen.getByRole('button', { name: 'Use packaged guide' }));
+    expect(
+      await screen.findByText(/Custom GIF removed and verified/),
+    ).toBeVisible();
+    expect(
+      screen.getByRole('progressbar', { name: 'Movement tempo phase' }),
+    ).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    first.unmount();
+
+    render(
+      <div id="root">
+        <ExerciseGuide exercise={exercise} />
+      </div>,
+    );
+    await waitFor(() =>
+      expect(
+        screen
+          .getByRole('button', {
+            name: `Open demonstration for ${exercise.name}`,
+          })
+          .querySelector('img'),
+      ).not.toHaveAttribute('src', expect.stringContaining('data:image/gif')),
+    );
   });
 });

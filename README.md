@@ -10,7 +10,7 @@ https://bill6006.github.io/Workout-Conductor-Rebuild/
 
 Phase 8 completes the planned application with exact and reversible local-data recovery, production offline exercise demonstrations, safe PWA updates, accessibility and 200% zoom acceptance, and final release polish over the deterministic coaching, workout-execution, and evidence-led progress foundation.
 
-The current `0.8.4` build (`WC-P8UX-0814`) adds a sticky active-workout navigator, durable skip-for-now and return, explicit missed-exercise finish consent, omission-safe summaries, and verified one-time celebration. It remains YELLOW until a separate adversarial retest confirms the deployed enhancement without regressing earlier Phase 8 repairs.
+The current `0.8.8` build (`WC-P8UXR4-0814`) preserves the Phase 8 workout and data-safety work while making movement-guide tempo phase-accurate and visible for packaged or user-selected GIF media. It remains YELLOW until a separate adversarial retest confirms the deployed repair without regressing earlier Phase 8 behavior.
 
 Complete backups cover every protected IndexedDB store and local setting, preserve unknown fields, and require a no-change preview plus explicit confirmation before restore. Critical saves and restores are read back and verified, failed restores roll back automatically, and all user data remains browser-local.
 
